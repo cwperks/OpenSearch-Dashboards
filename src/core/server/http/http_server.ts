@@ -55,6 +55,7 @@ import { IsAuthenticated, AuthStateStorage, GetAuthState } from './auth_state_st
 import { AuthHeadersStorage, GetAuthHeaders } from './auth_headers_storage';
 import { BasePath } from './base_path_service';
 import { HttpServiceSetup, HttpServerInfo } from './types';
+import { PluginOpaqueId } from '../plugins';
 
 /** @internal */
 export interface HttpServerSetup {
@@ -63,7 +64,8 @@ export interface HttpServerSetup {
    * Add all the routes registered with `router` to HTTP server request listeners.
    * @param router {@link IRouter} - a router with registered route handlers.
    */
-  registerRouter: (router: IRouter) => void;
+  getRouter: (pluginId: PluginOpaqueId) => IRouter | undefined;
+  registerRouter: (pluginId: PluginOpaqueId, router: IRouter) => void;
   registerStaticDir: (path: string, dirPath: string) => void;
   basePath: HttpServiceSetup['basePath'];
   csp: HttpServiceSetup['csp'];
@@ -94,7 +96,8 @@ export type LifecycleRegistrar = Pick<
 export class HttpServer {
   private server?: Server;
   private config?: HttpConfig;
-  private registeredRouters = new Set<IRouter>();
+  // private registeredRouters = new Set<IRouter>();
+  private registeredRouters = new Map<string, IRouter>();
   private authRegistered = false;
   private cookieSessionStorageCreated = false;
   private stopped = false;
@@ -115,12 +118,16 @@ export class HttpServer {
     return this.server !== undefined && this.server.listener.listening;
   }
 
-  private registerRouter(router: IRouter) {
+  private registerRouter(pluginId: PluginOpaqueId, router: IRouter) {
     if (this.isListening()) {
       throw new Error('Routers can be registered only when HTTP server is stopped.');
     }
 
-    this.registeredRouters.add(router);
+    this.registeredRouters.set(String(pluginId), router);
+  }
+
+  private getRouter(pluginId: PluginOpaqueId) {
+    return this.registeredRouters.get(String(pluginId));
   }
 
   public async setup(config: HttpConfig): Promise<HttpServerSetup> {
@@ -136,6 +143,7 @@ export class HttpServer {
     this.setupRequestStateAssignment(config);
 
     return {
+      getRouter: this.getRouter.bind(this),
       registerRouter: this.registerRouter.bind(this),
       registerStaticDir: this.registerStaticDir.bind(this),
       registerOnPreRouting: this.registerOnPreRouting.bind(this),
@@ -175,7 +183,7 @@ export class HttpServer {
     }
     this.log.debug('starting http server');
 
-    for (const router of this.registeredRouters) {
+    for (const [_, router] of this.registeredRouters) {
       for (const route of router.getRoutes()) {
         this.log.debug(`registering route handler for [${route.path}]`);
         // Hapi does not allow payload validation to be specified for 'head' or 'get' requests

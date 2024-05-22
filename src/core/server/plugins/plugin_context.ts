@@ -161,7 +161,12 @@ export function createPluginSetupContext<TPlugin, TPluginDependencies>(
   deps: PluginsServiceSetupDeps,
   plugin: PluginWrapper<TPlugin, TPluginDependencies>
 ): CoreSetup {
-  const router = deps.http.createRouter('', plugin.opaqueId);
+  let router;
+  if (String(plugin.opaqueId) === 'Symbol(securityAdminDashboards)') {
+    router = deps.http.createRouter('', Symbol('securityDashboards'));
+  } else {
+    router = deps.http.createRouter('', plugin.opaqueId);
+  }
 
   return {
     capabilities: {
