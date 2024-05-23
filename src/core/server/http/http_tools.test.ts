@@ -119,7 +119,7 @@ describe('timeouts', () => {
         ipAllowlist: [],
       },
     } as any);
-    registerRouter(router);
+    registerRouter(Symbol(), router);
 
     await server.start();
 

@@ -172,7 +172,7 @@ test('valid params', async () => {
   );
 
   const { registerRouter, server: innerServer } = await server.setup(config);
-  registerRouter(router);
+  registerRouter(Symbol(), router);
 
   await server.start();
 
@@ -202,7 +202,7 @@ test('invalid params', async () => {
   );
 
   const { registerRouter, server: innerServer } = await server.setup(config);
-  registerRouter(router);
+  registerRouter(Symbol(), router);
 
   await server.start();
 
@@ -237,7 +237,7 @@ test('valid query', async () => {
   );
 
   const { registerRouter, server: innerServer } = await server.setup(config);
-  registerRouter(router);
+  registerRouter(Symbol(), router);
 
   await server.start();
 
@@ -267,7 +267,7 @@ test('invalid query', async () => {
   );
 
   const { registerRouter, server: innerServer } = await server.setup(config);
-  registerRouter(router);
+  registerRouter(Symbol(), router);
 
   await server.start();
 
@@ -302,7 +302,7 @@ test('valid body', async () => {
   );
 
   const { registerRouter, server: innerServer } = await server.setup(config);
-  registerRouter(router);
+  registerRouter(Symbol(), router);
 
   await server.start();
 
@@ -340,7 +340,7 @@ test('valid body with validate function', async () => {
   );
 
   const { registerRouter, server: innerServer } = await server.setup(config);
-  registerRouter(router);
+  registerRouter(Symbol(), router);
 
   await server.start();
 
@@ -383,7 +383,7 @@ test('not inline validation - specifying params', async () => {
   );
 
   const { registerRouter, server: innerServer } = await server.setup(config);
-  registerRouter(router);
+  registerRouter(Symbol(), router);
 
   await server.start();
 
@@ -426,7 +426,7 @@ test('not inline validation - specifying validation handler', async () => {
   );
 
   const { registerRouter, server: innerServer } = await server.setup(config);
-  registerRouter(router);
+  registerRouter(Symbol(), router);
 
   await server.start();
 
@@ -476,7 +476,7 @@ test('not inline handler - OpenSearchDashboardsRequest', async () => {
   );
 
   const { registerRouter, server: innerServer } = await server.setup(config);
-  registerRouter(router);
+  registerRouter(Symbol(), router);
 
   await server.start();
 
@@ -525,7 +525,7 @@ test('not inline handler - RequestHandler', async () => {
   );
 
   const { registerRouter, server: innerServer } = await server.setup(config);
-  registerRouter(router);
+  registerRouter(Symbol(), router);
 
   await server.start();
 
@@ -559,7 +559,7 @@ test('invalid body', async () => {
   );
 
   const { registerRouter, server: innerServer } = await server.setup(config);
-  registerRouter(router);
+  registerRouter(Symbol(), router);
 
   await server.start();
 
@@ -594,7 +594,7 @@ test('handles putting', async () => {
   );
 
   const { registerRouter, server: innerServer } = await server.setup(config);
-  registerRouter(router);
+  registerRouter(Symbol(), router);
 
   await server.start();
 
@@ -625,7 +625,7 @@ test('handles deleting', async () => {
   );
 
   const { registerRouter, server: innerServer } = await server.setup(config);
-  registerRouter(router);
+  registerRouter(Symbol(), router);
 
   await server.start();
 
@@ -655,7 +655,7 @@ describe('with `basepath: /bar` and `rewriteBasePath: false`', () => {
     );
 
     const { registerRouter, server: innerServer } = await server.setup(configWithBasePath);
-    registerRouter(router);
+    registerRouter(Symbol(), router);
 
     await server.start();
     innerServerListener = innerServer.listener;
@@ -710,7 +710,7 @@ describe('with `basepath: /bar` and `rewriteBasePath: true`', () => {
     );
 
     const { registerRouter, server: innerServer } = await server.setup(configWithBasePath);
-    registerRouter(router);
+    registerRouter(Symbol(), router);
 
     await server.start();
     innerServerListener = innerServer.listener;
@@ -757,7 +757,7 @@ test('with defined `redirectHttpFromPort`', async () => {
   router.get({ path: '/', validate: false }, (context, req, res) => res.ok({ body: 'value:/' }));
 
   const { registerRouter } = await server.setup(configWithSSL);
-  registerRouter(router);
+  registerRouter(Symbol(), router);
 
   await server.start();
 });
@@ -790,7 +790,7 @@ test('allows attaching metadata to attach meta-data tag strings to a route', asy
   router.get({ path: '/without-tags', validate: false }, (context, req, res) =>
     res.ok({ body: { tags: req.route.options.tags } })
   );
-  registerRouter(router);
+  registerRouter(Symbol(), router);
 
   await server.start();
   await supertest(innerServer.listener).get('/with-tags').expect(200, { tags });
@@ -803,7 +803,7 @@ test('exposes route details of incoming request to a route handler', async () =>
 
   const router = new Router('', logger, enhanceWithContext);
   router.get({ path: '/', validate: false }, (context, req, res) => res.ok({ body: req.route }));
-  registerRouter(router);
+  registerRouter(Symbol(), router);
 
   await server.start();
   await supertest(innerServer.listener)
@@ -830,7 +830,7 @@ describe('conditional compression', () => {
       headers: { 'Content-Type': 'text/html; charset=UTF-8' },
     };
     router.get({ path: '/', validate: false }, (_context, _req, res) => res.ok(largeRequest));
-    registerRouter(router);
+    registerRouter(Symbol(), router);
     await server.start();
     return innerServer.listener;
   }
@@ -908,7 +908,7 @@ describe('conditional compression', () => {
       router.get({ path: '/', validate: false }, (context, req, res) =>
         res.ok({ body: req.route })
       );
-      registerRouter(router);
+      registerRouter(Symbol(), router);
 
       await server.start();
       const response = await supertest(innerServer.listener)
@@ -927,7 +927,7 @@ describe('conditional compression', () => {
       router.get({ path: '/', validate: false }, (context, req, res) =>
         res.ok({ body: req.route })
       );
-      registerRouter(router);
+      registerRouter(Symbol(), router);
 
       await server.start();
       const response = await supertest(innerServer.listener).get('/').expect(200);
@@ -957,7 +957,7 @@ test('exposes route details of incoming request to a route handler (POST + paylo
     },
     (context, req, res) => res.ok({ body: req.route })
   );
-  registerRouter(router);
+  registerRouter(Symbol(), router);
 
   await server.start();
   await supertest(innerServer.listener)
@@ -996,7 +996,7 @@ describe('body options', () => {
       },
       (context, req, res) => res.ok({ body: req.route })
     );
-    registerRouter(router);
+    registerRouter(Symbol(), router);
 
     await server.start();
     await supertest(innerServer.listener).post('/').send({ test: 1 }).expect(415, {
@@ -1018,7 +1018,7 @@ describe('body options', () => {
       },
       (context, req, res) => res.ok({ body: req.route })
     );
-    registerRouter(router);
+    registerRouter(Symbol(), router);
 
     await server.start();
     await supertest(innerServer.listener).post('/').send({ test: 1 }).expect(413, {
@@ -1048,7 +1048,7 @@ describe('body options', () => {
         }
       }
     );
-    registerRouter(router);
+    registerRouter(Symbol(), router);
 
     await server.start();
     await supertest(innerServer.listener).post('/').send({ test: 1 }).expect(200, {
@@ -1087,7 +1087,7 @@ describe('timeout options', () => {
           }
         }
       );
-      registerRouter(router);
+      registerRouter(Symbol(), router);
       await server.start();
       await supertest(innerServer.listener)
         .post('/')
@@ -1125,7 +1125,7 @@ describe('timeout options', () => {
           }
         }
       );
-      registerRouter(router);
+      registerRouter(Symbol(), router);
       await server.start();
       await supertest(innerServer.listener)
         .delete('/')
@@ -1162,7 +1162,7 @@ describe('timeout options', () => {
           }
         }
       );
-      registerRouter(router);
+      registerRouter(Symbol(), router);
       await server.start();
       await supertest(innerServer.listener)
         .put('/')
@@ -1199,7 +1199,7 @@ describe('timeout options', () => {
           }
         }
       );
-      registerRouter(router);
+      registerRouter(Symbol(), router);
       await server.start();
       await supertest(innerServer.listener)
         .patch('/')
@@ -1232,7 +1232,7 @@ describe('timeout options', () => {
           });
         }
       );
-      registerRouter(router);
+      registerRouter(Symbol(), router);
 
       await server.start();
       await supertest(innerServer.listener)
@@ -1266,7 +1266,7 @@ describe('timeout options', () => {
           });
         }
       );
-      registerRouter(router);
+      registerRouter(Symbol(), router);
 
       await server.start();
       await supertest(innerServer.listener)
@@ -1300,7 +1300,7 @@ describe('timeout options', () => {
       }
     );
 
-    registerRouter(router);
+    registerRouter(Symbol(), router);
 
     await server.start();
   });
@@ -1325,7 +1325,7 @@ test('should return a stream in the body', async () => {
       }
     }
   );
-  registerRouter(router);
+  registerRouter(Symbol(), router);
 
   await server.start();
   await supertest(innerServer.listener).put('/').send({ test: 1 }).expect(200, {
