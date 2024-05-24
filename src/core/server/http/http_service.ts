@@ -116,8 +116,13 @@ export class HttpService
 
       createRouter: (path: string, pluginId: PluginOpaqueId = this.coreContext.coreId) => {
         const existingRouter = getRouter(pluginId);
-        if (!!existingRouter) {
-          return existingRouter;
+        if (
+          !!existingRouter &&
+          existingRouter.size === 1 &&
+          (String(pluginId) === 'Symbol(securityAdminDashboards)' ||
+            String(pluginId) === 'Symbol(securityDashboards)')
+        ) {
+          return existingRouter.values().next().value;
         }
         const enhanceHandler = this.requestHandlerContext!.createHandler.bind(null, pluginId);
         const router = new Router(path, this.log, enhanceHandler);
