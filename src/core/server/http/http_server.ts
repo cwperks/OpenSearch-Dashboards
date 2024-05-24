@@ -123,7 +123,13 @@ export class HttpServer {
       throw new Error('Routers can be registered only when HTTP server is stopped.');
     }
 
-    this.registeredRouters.set(String(pluginId), router);
+    const existingRouter = this.registeredRouters.get(String(pluginId));
+    if (existingRouter) {
+      existingRouter.addAllRoutes(router.getRoutes());
+      this.registeredRouters.set(String(pluginId), existingRouter);
+    } else {
+      this.registeredRouters.set(String(pluginId), router);
+    }
   }
 
   private getRouter(pluginId: PluginOpaqueId) {
