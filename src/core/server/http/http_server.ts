@@ -55,6 +55,7 @@ import { IsAuthenticated, AuthStateStorage, GetAuthState } from './auth_state_st
 import { AuthHeadersStorage, GetAuthHeaders } from './auth_headers_storage';
 import { BasePath } from './base_path_service';
 import { HttpServiceSetup, HttpServerInfo } from './types';
+import { PluginOpaqueId } from '../plugins';
 
 /** @internal */
 export interface HttpServerSetup {
@@ -63,7 +64,8 @@ export interface HttpServerSetup {
    * Add all the routes registered with `router` to HTTP server request listeners.
    * @param router {@link IRouter} - a router with registered route handlers.
    */
-  registerRouter: (router: IRouter) => void;
+  getRouter: (pluginId: PluginOpaqueId) => Set<IRouter> | undefined;
+  registerRouter: (pluginId: PluginOpaqueId, router: IRouter) => void;
   registerStaticDir: (path: string, dirPath: string) => void;
   basePath: HttpServiceSetup['basePath'];
   csp: HttpServiceSetup['csp'];
@@ -94,7 +96,8 @@ export type LifecycleRegistrar = Pick<
 export class HttpServer {
   private server?: Server;
   private config?: HttpConfig;
-  private registeredRouters = new Set<IRouter>();
+  // private registeredRouters = new Set<IRouter>();
+  private registeredRouters = new Map<string, Set<IRouter>>();
   private authRegistered = false;
   private cookieSessionStorageCreated = false;
   private stopped = false;
@@ -115,12 +118,24 @@ export class HttpServer {
     return this.server !== undefined && this.server.listener.listening;
   }
 
-  private registerRouter(router: IRouter) {
+  private registerRouter(pluginId: PluginOpaqueId, router: IRouter) {
     if (this.isListening()) {
       throw new Error('Routers can be registered only when HTTP server is stopped.');
     }
 
-    this.registeredRouters.add(router);
+    const existingRouters = this.registeredRouters.get(String(pluginId));
+    if (existingRouters) {
+      existingRouters.add(router);
+      this.registeredRouters.set(String(pluginId), existingRouters);
+    } else {
+      const routerSet: Set<IRouter> = new Set();
+      routerSet.add(router);
+      this.registeredRouters.set(String(pluginId), routerSet);
+    }
+  }
+
+  private getRouter(pluginId: PluginOpaqueId) {
+    return this.registeredRouters.get(String(pluginId));
   }
 
   public async setup(config: HttpConfig): Promise<HttpServerSetup> {
@@ -136,6 +151,7 @@ export class HttpServer {
     this.setupRequestStateAssignment(config);
 
     return {
+      getRouter: this.getRouter.bind(this),
       registerRouter: this.registerRouter.bind(this),
       registerStaticDir: this.registerStaticDir.bind(this),
       registerOnPreRouting: this.registerOnPreRouting.bind(this),
@@ -175,47 +191,51 @@ export class HttpServer {
     }
     this.log.debug('starting http server');
 
-    for (const router of this.registeredRouters) {
-      for (const route of router.getRoutes()) {
-        this.log.debug(`registering route handler for [${route.path}]`);
-        // Hapi does not allow payload validation to be specified for 'head' or 'get' requests
-        const validate = isSafeMethod(route.method) ? undefined : { payload: true };
-        const { authRequired, tags, body = {}, timeout } = route.options;
-        const { accepts: allow, maxBytes, output, parse } = body;
+    for (const [_, routers] of this.registeredRouters) {
+      for (const router of routers) {
+        for (const route of router.getRoutes()) {
+          this.log.debug(`registering route handler for [${route.path}]`);
+          // Hapi does not allow payload validation to be specified for 'head' or 'get' requests
+          const validate = isSafeMethod(route.method) ? undefined : { payload: true };
+          const { authRequired, tags, body = {}, timeout } = route.options;
+          const { accepts: allow, maxBytes, output, parse } = body;
 
-        const opensearchDashboardsRouteOptions: OpenSearchDashboardsRouteOptions = {
-          xsrfRequired: route.options.xsrfRequired ?? !isSafeMethod(route.method),
-        };
+          const opensearchDashboardsRouteOptions: OpenSearchDashboardsRouteOptions = {
+            xsrfRequired: route.options.xsrfRequired ?? !isSafeMethod(route.method),
+          };
 
-        this.server.route({
-          handler: route.handler,
-          method: route.method,
-          path: route.path,
-          options: {
-            auth: this.getAuthOption(authRequired),
-            app: opensearchDashboardsRouteOptions,
-            tags: tags ? Array.from(tags) : undefined,
-            // TODO: This 'validate' section can be removed once the legacy platform is completely removed.
-            // We are telling Hapi that NP routes can accept any payload, so that it can bypass the default
-            // validation applied in ./http_tools#getServerOptions
-            // (All NP routes are already required to specify their own validation in order to access the payload)
-            validate,
-            // @ts-expect-error Types are outdated and doesn't allow `payload.multipart` to be `true`
-            payload: [allow, maxBytes, output, parse, timeout?.payload].some((x) => x !== undefined)
-              ? {
-                  allow,
-                  maxBytes,
-                  output,
-                  parse,
-                  timeout: timeout?.payload,
-                  multipart: true,
-                }
-              : undefined,
-            timeout: {
-              socket: timeout?.idleSocket ?? this.config!.socketTimeout,
+          this.server.route({
+            handler: route.handler,
+            method: route.method,
+            path: route.path,
+            options: {
+              auth: this.getAuthOption(authRequired),
+              app: opensearchDashboardsRouteOptions,
+              tags: tags ? Array.from(tags) : undefined,
+              // TODO: This 'validate' section can be removed once the legacy platform is completely removed.
+              // We are telling Hapi that NP routes can accept any payload, so that it can bypass the default
+              // validation applied in ./http_tools#getServerOptions
+              // (All NP routes are already required to specify their own validation in order to access the payload)
+              validate,
+              // @ts-expect-error Types are outdated and doesn't allow `payload.multipart` to be `true`
+              payload: [allow, maxBytes, output, parse, timeout?.payload].some(
+                (x) => x !== undefined
+              )
+                ? {
+                    allow,
+                    maxBytes,
+                    output,
+                    parse,
+                    timeout: timeout?.payload,
+                    multipart: true,
+                  }
+                : undefined,
+              timeout: {
+                socket: timeout?.idleSocket ?? this.config!.socketTimeout,
+              },
             },
-          },
-        });
+          });
+        }
       }
     }
 

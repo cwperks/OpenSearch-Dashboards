@@ -47,7 +47,7 @@ import {
 } from '../opensearch_dashboards_config';
 import { OpenSearchConfigType, config as opensearchConfig } from '../opensearch/opensearch_config';
 import { SavedObjectsConfigType, savedObjectsConfig } from '../saved_objects/saved_objects_config';
-import { CoreSetup, CoreStart } from '..';
+import { CoreSetup, CoreStart, IRouter } from '..';
 
 export interface InstanceInfo {
   uuid: string;
@@ -161,7 +161,12 @@ export function createPluginSetupContext<TPlugin, TPluginDependencies>(
   deps: PluginsServiceSetupDeps,
   plugin: PluginWrapper<TPlugin, TPluginDependencies>
 ): CoreSetup {
-  const router = deps.http.createRouter('', plugin.opaqueId);
+  let router: IRouter;
+  if (String(plugin.opaqueId) === 'Symbol(securityAdminDashboards)') {
+    router = deps.http.createRouter('', Symbol('securityDashboards'));
+  } else {
+    router = deps.http.createRouter('', plugin.opaqueId);
+  }
 
   return {
     capabilities: {

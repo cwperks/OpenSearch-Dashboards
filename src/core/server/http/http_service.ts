@@ -107,7 +107,7 @@ export class HttpService
       await this.runNotReadyServer(config);
     }
 
-    const { registerRouter, ...serverContract } = await this.httpServer.setup(config);
+    const { registerRouter, getRouter, ...serverContract } = await this.httpServer.setup(config);
 
     registerCoreHandlers(serverContract, config, this.env);
 
@@ -115,9 +115,18 @@ export class HttpService
       ...serverContract,
 
       createRouter: (path: string, pluginId: PluginOpaqueId = this.coreContext.coreId) => {
+        const existingRouter = getRouter(pluginId);
+        if (
+          !!existingRouter &&
+          existingRouter.size === 1 &&
+          (String(pluginId) === 'Symbol(securityAdminDashboards)' ||
+            String(pluginId) === 'Symbol(securityDashboards)')
+        ) {
+          return existingRouter.values().next().value;
+        }
         const enhanceHandler = this.requestHandlerContext!.createHandler.bind(null, pluginId);
         const router = new Router(path, this.log, enhanceHandler);
-        registerRouter(router);
+        registerRouter(pluginId, router);
         return router;
       },
 

@@ -214,7 +214,7 @@ export class ContextContainer<THandler extends HandlerFunction<any>>
     }
   >();
   /** Used to keep track of which plugins registered which contexts for dependency resolution. */
-  private readonly contextNamesBySource: Map<symbol, Array<keyof HandlerContextType<THandler>>>;
+  private readonly contextNamesBySource: Map<string, Array<keyof HandlerContextType<THandler>>>;
 
   /**
    * @param pluginDependencies - A map of plugins to an array of their dependencies.
@@ -223,8 +223,8 @@ export class ContextContainer<THandler extends HandlerFunction<any>>
     private readonly pluginDependencies: ReadonlyMap<PluginOpaqueId, PluginOpaqueId[]>,
     private readonly coreId: CoreId
   ) {
-    this.contextNamesBySource = new Map<symbol, Array<keyof HandlerContextType<THandler>>>([
-      [coreId, []],
+    this.contextNamesBySource = new Map<string, Array<keyof HandlerContextType<THandler>>>([
+      [String(coreId), []],
     ]);
   }
 
@@ -233,16 +233,20 @@ export class ContextContainer<THandler extends HandlerFunction<any>>
     contextName: TContextName,
     provider: IContextProvider<THandler, TContextName>
   ): this => {
-    if (this.contextProviders.has(contextName)) {
-      throw new Error(`Context provider for ${contextName} has already been registered.`);
+    // if (this.contextProviders.has(contextName)) {
+    //   throw new Error(`Context provider for ${contextName} has already been registered.`);
+    // }
+    const pluginIdSet = new Set();
+    for (const pluginId of this.pluginDependencies.keys()) {
+      pluginIdSet.add(String(pluginId));
     }
-    if (source !== this.coreId && !this.pluginDependencies.has(source)) {
+    if (source !== this.coreId && !pluginIdSet.has(String(source))) {
       throw new Error(`Cannot register context for unknown plugin: ${source.toString()}`);
     }
 
     this.contextProviders.set(contextName, { provider, source });
-    this.contextNamesBySource.set(source, [
-      ...(this.contextNamesBySource.get(source) || []),
+    this.contextNamesBySource.set(String(source), [
+      ...(this.contextNamesBySource.get(String(source)) || []),
       contextName,
     ]);
 
@@ -250,7 +254,11 @@ export class ContextContainer<THandler extends HandlerFunction<any>>
   };
 
   public createHandler = (source: symbol, handler: THandler) => {
-    if (source !== this.coreId && !this.pluginDependencies.has(source)) {
+    const pluginIdSet = new Set();
+    for (const pluginId of this.pluginDependencies.keys()) {
+      pluginIdSet.add(String(pluginId));
+    }
+    if (source !== this.coreId && !pluginIdSet.has(String(source))) {
       throw new Error(`Cannot create handler for unknown plugin: ${source.toString()}`);
     }
 
@@ -265,7 +273,7 @@ export class ContextContainer<THandler extends HandlerFunction<any>>
     ...contextArgs: HandlerParameters<THandler>
   ): Promise<HandlerContextType<THandler>> {
     const contextsToBuild: ReadonlySet<keyof HandlerContextType<THandler>> = new Set(
-      this.getContextNamesForSource(source)
+      this.getContextNamesForSource(String(source))
     );
 
     return [...this.contextProviders]
@@ -277,7 +285,7 @@ export class ContextContainer<THandler extends HandlerFunction<any>>
         // For the next provider, only expose the context available based on the dependencies of the plugin that
         // registered that provider.
         const exposedContext = pick(resolvedContext, [
-          ...this.getContextNamesForSource(providerSource),
+          ...this.getContextNamesForSource(String(providerSource)),
         ]) as PartialExceptFor<HandlerContextType<THandler>, 'core'>;
 
         return {
@@ -288,9 +296,9 @@ export class ContextContainer<THandler extends HandlerFunction<any>>
   }
 
   private getContextNamesForSource(
-    source: symbol
+    source: string
   ): ReadonlySet<keyof HandlerContextType<THandler>> {
-    if (source === this.coreId) {
+    if (String(source) === String(this.coreId)) {
       return this.getContextNamesForCore();
     } else {
       return this.getContextNamesForPluginId(source);
@@ -298,12 +306,18 @@ export class ContextContainer<THandler extends HandlerFunction<any>>
   }
 
   private getContextNamesForCore() {
-    return new Set(this.contextNamesBySource.get(this.coreId)!);
+    return new Set(this.contextNamesBySource.get(String(this.coreId))!);
   }
 
-  private getContextNamesForPluginId(pluginId: symbol) {
+  private getContextNamesForPluginId(pluginId: string) {
     // If the source is a plugin...
-    const pluginDeps = this.pluginDependencies.get(pluginId);
+    let pluginDepsKey: symbol = Symbol('not-exists');
+    for (const pluginKey of this.pluginDependencies.keys()) {
+      if (pluginId === String(pluginKey)) {
+        pluginDepsKey = pluginKey;
+      }
+    }
+    const pluginDeps = this.pluginDependencies.get(pluginDepsKey);
     if (!pluginDeps) {
       // This case should never be hit, but let's be safe.
       throw new Error(`Cannot create context for unknown plugin: ${pluginId.toString()}`);
@@ -311,11 +325,11 @@ export class ContextContainer<THandler extends HandlerFunction<any>>
 
     return new Set([
       // Core contexts
-      ...this.contextNamesBySource.get(this.coreId)!,
+      ...this.contextNamesBySource.get(String(this.coreId))!,
       // Contexts source created
       ...(this.contextNamesBySource.get(pluginId) || []),
       // Contexts sources's dependencies created
-      ...flatten(pluginDeps.map((p) => this.contextNamesBySource.get(p) || [])),
+      ...flatten(pluginDeps.map((p) => this.contextNamesBySource.get(String(p)) || [])),
     ]);
   }
 }
