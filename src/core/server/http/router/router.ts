@@ -130,8 +130,6 @@ export interface IRouter {
    * @internal
    */
   getRoutes: () => RouterRoute[];
-
-  addAllRoutes: (routesToAdd: RouterRoute[]) => void;
 }
 
 export type ContextEnhancer<P, Q, B, Method extends RouteMethod> = (
@@ -261,10 +259,6 @@ export class Router implements IRouter {
 
   public getRoutes() {
     return [...this.routes];
-  }
-
-  public addAllRoutes(routesToAdd: RouterRoute[]) {
-    return [...this.routes, ...routesToAdd];
   }
 
   public handleLegacyErrors = wrapErrors;
