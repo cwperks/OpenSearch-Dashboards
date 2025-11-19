@@ -377,9 +377,9 @@ export class UiSettingsClient implements IUiSettingsClient {
     scope?: UiSettingScope;
   }) {
     changes = this.translateChanges(changes, 'timeline', 'timelion');
-    const docId = buildDocIdWithScope(this.id, scope);
 
     try {
+      const docId = buildDocIdWithScope(this.id, scope);
       await this.savedObjectsClient.update(this.type, docId, changes);
     } catch (error) {
       if (!SavedObjectsErrorHelpers.isNotFoundError(error) || !autoCreateOrUpgradeIfMissing) {
@@ -409,9 +409,8 @@ export class UiSettingsClient implements IUiSettingsClient {
     ignore404Errors = false,
     scope,
   }: ReadOptions = {}): Promise<Record<string, any>> {
-    const docId = buildDocIdWithScope(this.id, scope);
-
     try {
+      const docId = buildDocIdWithScope(this.id, scope);
       const resp = await this.savedObjectsClient.get<Record<string, any>>(this.type, docId);
       return this.translateChanges(resp.attributes, 'timelion', 'timeline');
     } catch (error) {
