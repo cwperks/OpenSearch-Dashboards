@@ -290,7 +290,7 @@ export class Server {
     });
     soStartSpan?.end();
     const capabilitiesStart = this.capabilities.start();
-    const uiSettingsStart = await this.uiSettings.start();
+    const uiSettingsStart = await this.uiSettings.start({ opensearch: opensearchStart });
     const workspaceStart = await this.workspace.start();
     const metricsStart = await this.metrics.start();
     const httpStart = this.http.getStartContract();
