@@ -51,8 +51,6 @@ export interface UiSettingsServiceOptions {
   overrides?: Record<string, any>;
   defaults?: Record<string, UiSettingsParams>;
   log: Logger;
-  opensearchClient?: any;
-  index?: string;
 }
 
 interface ReadOptions {
@@ -112,25 +110,13 @@ export class UiSettingsClient implements IUiSettingsClient {
   private readonly overrides: NonNullable<UiSettingsServiceOptions['overrides']>;
   private readonly defaults: NonNullable<UiSettingsServiceOptions['defaults']>;
   private readonly log: Logger;
-  private readonly opensearchClient?: any;
-  private readonly index: string;
   private readonly userLevelSettingsKeys: string[] = [];
   private readonly workspaceLevelSettingsKeys: string[] = [];
   private readonly globalLevelSettingsKeys: string[] = [];
   private readonly adminUiSettingsKeys: string[] = [];
 
   constructor(options: UiSettingsServiceOptions) {
-    const {
-      type,
-      id,
-      buildNum,
-      savedObjectsClient,
-      log,
-      defaults = {},
-      overrides = {},
-      opensearchClient,
-      index,
-    } = options;
+    const { type, id, buildNum, savedObjectsClient, log, defaults = {}, overrides = {} } = options;
 
     this.type = type;
     this.id = id;
@@ -139,8 +125,6 @@ export class UiSettingsClient implements IUiSettingsClient {
     this.defaults = defaults;
     this.overrides = overrides;
     this.log = log;
-    this.opensearchClient = opensearchClient;
-    this.index = index || '.kibana';
     this.groupSettingsKeys(this.defaults);
   }
 
@@ -395,25 +379,6 @@ export class UiSettingsClient implements IUiSettingsClient {
     changes = this.translateChanges(changes, 'timeline', 'timelion');
     const docId = buildDocIdWithScope(this.id, scope);
 
-    // Try new API first if available
-    if (this.opensearchClient) {
-      try {
-        await this.opensearchClient.transport.request({
-          method: 'PUT',
-          path: `/_opensearch_dashboards/advanced_settings/${this.index}`,
-          body: changes,
-        });
-        return;
-      } catch (apiError: any) {
-        // Fall back to saved objects if API not available (404) or not authorized
-        if (apiError?.statusCode !== 404 && apiError?.statusCode !== 401) {
-          throw apiError;
-        }
-        this.log.debug('Advanced settings API not available, falling back to saved objects');
-      }
-    }
-
-    // Fallback to existing saved objects approach
     try {
       await this.savedObjectsClient.update(this.type, docId, changes);
     } catch (error) {
@@ -428,8 +393,6 @@ export class UiSettingsClient implements IUiSettingsClient {
         log: this.log,
         handleWriteErrors: false,
         scope,
-        opensearchClient: this.opensearchClient,
-        index: this.index,
       });
 
       await this.write({
@@ -448,57 +411,6 @@ export class UiSettingsClient implements IUiSettingsClient {
   }: ReadOptions = {}): Promise<Record<string, any>> {
     const docId = buildDocIdWithScope(this.id, scope);
 
-    // Try new API first if available
-    if (this.opensearchClient) {
-      try {
-        const response = await this.opensearchClient.transport.request({
-          method: 'GET',
-          path: `/_opensearch_dashboards/advanced_settings/${this.index}`,
-        });
-        return this.translateChanges(response.body, 'timelion', 'timeline');
-      } catch (apiError: any) {
-        // 404 from GET means document doesn't exist, need to create it
-        if (apiError?.statusCode === 404 && autoCreateOrUpgradeIfMissing) {
-          const failedUpgradeAttributes = await createOrUpgradeSavedConfig({
-            savedObjectsClient: this.savedObjectsClient,
-            version: this.id,
-            buildNum: this.buildNum,
-            log: this.log,
-            handleWriteErrors: true,
-            scope,
-            opensearchClient: this.opensearchClient,
-            index: this.index,
-          });
-
-          if (!failedUpgradeAttributes) {
-            return await this.read({
-              ignore401Errors,
-              autoCreateOrUpgradeIfMissing: false,
-              scope,
-            });
-          }
-
-          return failedUpgradeAttributes;
-        }
-
-        // Handle other error cases
-        if (ignore404Errors && apiError?.statusCode === 404) {
-          return {};
-        }
-        if (this.isIgnorableError(apiError, ignore401Errors)) {
-          return {};
-        }
-
-        // 401 means API exists but not authorized, fall back to saved objects
-        if (apiError?.statusCode === 401) {
-          this.log.debug('Advanced settings API not authorized, falling back to saved objects');
-        } else {
-          throw apiError;
-        }
-      }
-    }
-
-    // Fallback to existing saved objects approach
     try {
       const resp = await this.savedObjectsClient.get<Record<string, any>>(this.type, docId);
       return this.translateChanges(resp.attributes, 'timelion', 'timeline');
@@ -511,8 +423,6 @@ export class UiSettingsClient implements IUiSettingsClient {
           log: this.log,
           handleWriteErrors: true,
           scope,
-          opensearchClient: this.opensearchClient,
-          index: this.index,
         });
 
         if (!failedUpgradeAttributes) {

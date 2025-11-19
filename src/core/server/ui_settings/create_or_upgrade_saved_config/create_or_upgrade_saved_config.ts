@@ -45,23 +45,12 @@ interface Options {
   log: Logger;
   handleWriteErrors: boolean;
   scope?: UiSettingScope;
-  opensearchClient?: any;
-  index?: string;
 }
 
 export async function createOrUpgradeSavedConfig(
   options: Options
 ): Promise<Record<string, any> | undefined> {
-  const {
-    savedObjectsClient,
-    version,
-    buildNum,
-    log,
-    handleWriteErrors,
-    scope,
-    opensearchClient,
-    index,
-  } = options;
+  const { savedObjectsClient, version, buildNum, log, handleWriteErrors, scope } = options;
 
   // try to find an older config we can upgrade
   let upgradeableConfig;
@@ -80,36 +69,6 @@ export async function createOrUpgradeSavedConfig(
     upgradeableConfig ? (upgradeableConfig.attributes as any) : {}
   );
 
-  // Try new API first if available
-  if (opensearchClient && index) {
-    try {
-      await opensearchClient.transport.request({
-        method: 'PUT',
-        path: `/_opensearch_dashboards/advanced_settings/${index}`,
-        body: attributes,
-      });
-
-      if (upgradeableConfig) {
-        log.debug(`Upgrade config from ${upgradeableConfig.id} to ${version}`, {
-          prevVersion: upgradeableConfig.id,
-          newVersion: version,
-          scope,
-        });
-      }
-      return;
-    } catch (apiError: any) {
-      // Fall back to saved objects if API not available
-      if (apiError?.statusCode !== 404 && apiError?.statusCode !== 401) {
-        if (handleWriteErrors) {
-          return attributes;
-        }
-        throw apiError;
-      }
-      log.debug('Advanced settings API not available, falling back to saved objects');
-    }
-  }
-
-  // Fallback to saved objects approach
   try {
     const docId = buildDocIdWithScope(version, scope);
     // create the new SavedConfig

@@ -64,10 +64,6 @@ export interface SetupDeps {
   savedObjects: InternalSavedObjectsServiceSetup;
 }
 
-export interface StartDeps {
-  opensearch?: any;
-}
-
 /** @internal */
 export class UiSettingsService
   implements CoreService<InternalUiSettingsServiceSetup, InternalUiSettingsServiceStart> {
@@ -75,8 +71,6 @@ export class UiSettingsService
   private readonly config$: Observable<[UiSettingsConfigType, SavedObjectsConfigType]>;
   private readonly uiSettingsDefaults = new Map<string, UiSettingsParams>();
   private overrides: Record<string, any> = {};
-  private opensearchClient?: any;
-  private kibanaIndex?: string;
 
   constructor(private readonly coreContext: CoreContext) {
     this.log = coreContext.logger.get('ui-settings-service');
@@ -103,7 +97,6 @@ export class UiSettingsService
     );
 
     this.overrides = config.uiSettingsConfig.overrides || {};
-    this.kibanaIndex = config.savedObjectsConfig.index;
 
     // Use uiSettings.defaults from the config file
     this.validateAndUpdateConfiguredDefaults(config.uiSettingsConfig.defaults);
@@ -125,13 +118,9 @@ export class UiSettingsService
     };
   }
 
-  public async start(deps?: StartDeps): Promise<InternalUiSettingsServiceStart> {
+  public async start(): Promise<InternalUiSettingsServiceStart> {
     this.validatesDefinitions();
     this.validatesOverrides();
-
-    if (deps?.opensearch) {
-      this.opensearchClient = deps.opensearch.client.asInternalUser;
-    }
 
     return {
       asScopedToClient: this.getScopedClientFactory(),
@@ -153,8 +142,6 @@ export class UiSettingsService
         defaults: mapToObject(this.uiSettingsDefaults),
         overrides: this.overrides,
         log: this.log,
-        opensearchClient: this.opensearchClient,
-        index: this.kibanaIndex,
       });
   }
 
