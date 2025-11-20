@@ -11,6 +11,7 @@ import {
   SavedObjectsUpdateOptions,
   SavedObjectsUpdateResponse,
 } from '../saved_objects_client';
+import { SavedObjectsErrorHelpers } from './errors';
 
 /**
  * Wrapper that routes config type operations to the new advanced settings API
@@ -38,6 +39,9 @@ export class ConfigApiWrapper {
             attributes: doc.attributes || doc[type],
           };
         } catch (apiError: any) {
+          if (apiError?.statusCode === 403) {
+            throw SavedObjectsErrorHelpers.decorateForbiddenError(apiError);
+          }
           if (apiError?.statusCode !== 404 && apiError?.statusCode !== 401) {
             throw apiError;
           }
@@ -66,6 +70,9 @@ export class ConfigApiWrapper {
             attributes: doc.attributes || doc[type],
           };
         } catch (apiError: any) {
+          if (apiError?.statusCode === 403) {
+            throw SavedObjectsErrorHelpers.decorateForbiddenError(apiError);
+          }
           if (apiError?.statusCode !== 404 && apiError?.statusCode !== 401) {
             throw apiError;
           }
@@ -95,6 +102,9 @@ export class ConfigApiWrapper {
             attributes: doc.attributes || doc[type],
           };
         } catch (apiError: any) {
+          if (apiError?.statusCode === 403) {
+            throw SavedObjectsErrorHelpers.decorateForbiddenError(apiError);
+          }
           if (apiError?.statusCode !== 404 && apiError?.statusCode !== 401) {
             throw apiError;
           }
