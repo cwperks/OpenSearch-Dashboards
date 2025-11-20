@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { inspect } from 'util';
 import { SavedObjectsClientWrapperFactory } from './scoped_client_provider';
 import { SavedObject } from '../../types';
 import {
@@ -15,13 +16,18 @@ import {
  * Wrapper that routes config type operations to the new advanced settings API
  */
 export class ConfigApiWrapper {
-  constructor(private readonly opensearchClient: any, private readonly index: string) {}
+  constructor(
+    private readonly getOpenSearchClient: (request: any) => any,
+    private readonly index: string
+  ) {}
 
   public wrapperFactory: SavedObjectsClientWrapperFactory = (wrapperOptions) => {
+    const opensearchClient = this.getOpenSearchClient(wrapperOptions.request);
+
     const getWithApi = async <T = unknown>(type: string, id: string): Promise<SavedObject<T>> => {
-      if (type === 'config' && this.opensearchClient) {
+      if (type === 'config' && opensearchClient) {
         try {
-          const response = await this.opensearchClient.transport.request({
+          const response = await opensearchClient.transport.request({
             method: 'GET',
             path: `/_opensearch_dashboards/advanced_settings/${this.index}`,
           });
@@ -46,9 +52,9 @@ export class ConfigApiWrapper {
       attributes: T,
       options: SavedObjectsCreateOptions = {}
     ): Promise<SavedObject<T>> => {
-      if (type === 'config' && this.opensearchClient) {
+      if (type === 'config' && opensearchClient) {
         try {
-          const response = await this.opensearchClient.transport.request({
+          const response = await opensearchClient.transport.request({
             method: 'PUT',
             path: `/_opensearch_dashboards/advanced_settings/${this.index}`,
             body: attributes,
@@ -75,9 +81,9 @@ export class ConfigApiWrapper {
       attributes: Partial<T>,
       options: SavedObjectsUpdateOptions = {}
     ): Promise<SavedObjectsUpdateResponse<T>> => {
-      if (type === 'config' && this.opensearchClient) {
+      if (type === 'config' && opensearchClient) {
         try {
-          const response = await this.opensearchClient.transport.request({
+          const response = await opensearchClient.transport.request({
             method: 'PUT',
             path: `/_opensearch_dashboards/advanced_settings/${this.index}`,
             body: attributes,

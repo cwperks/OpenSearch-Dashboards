@@ -532,7 +532,7 @@ export class SavedObjectsService
 
     // Register config API wrapper first (lowest priority number = highest priority)
     const configApiWrapper = new ConfigApiWrapper(
-      client.asInternalUser,
+      (request) => client.asScoped(request).asCurrentUser,
       opensearchDashboardsConfig.index
     );
     clientProvider.addClientWrapperFactory(
