@@ -377,7 +377,6 @@ export class UiSettingsClient implements IUiSettingsClient {
     scope?: UiSettingScope;
   }) {
     changes = this.translateChanges(changes, 'timeline', 'timelion');
-
     try {
       const docId = buildDocIdWithScope(this.id, scope);
       await this.savedObjectsClient.update(this.type, docId, changes);
