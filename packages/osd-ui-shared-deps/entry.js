@@ -43,6 +43,7 @@ export const OsdMonaco = require('@osd/monaco');
 export const MonacoBarePluginApi = require('@osd/monaco').BarePluginApi;
 export const React = require('react');
 export const ReactDom = require('react-dom');
+export const ReactDomClient = require('react-dom/client');
 export const ReactDomServer = require('react-dom/server');
 export const ReactRouter = require('react-router'); // eslint-disable-line
 export const ReactRouterDom = require('react-router-dom');

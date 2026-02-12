@@ -44,6 +44,7 @@ exports.externals = {
   'moment-timezone': '__osdSharedDeps__.MomentTimezone',
   react: '__osdSharedDeps__.React',
   'react-dom': '__osdSharedDeps__.ReactDom',
+  'react-dom/client': '__osdSharedDeps__.ReactDomClient',
   'react-dom/server': '__osdSharedDeps__.ReactDomServer',
   'react-router': '__osdSharedDeps__.ReactRouter',
   'react-router-dom': '__osdSharedDeps__.ReactRouterDom',
