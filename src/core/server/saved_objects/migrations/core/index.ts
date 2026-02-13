@@ -29,7 +29,7 @@
  */
 
 export { DocumentMigrator } from './document_migrator';
-export { IndexMigrator } from './index_migrator';
+export { IndexMigrator, CleanupConfig } from './index_migrator';
 export { buildActiveMappings } from './build_active_mappings';
 export { CallCluster } from './call_cluster';
 export { LogFn, SavedObjectsMigrationLogger } from './migration_logger';

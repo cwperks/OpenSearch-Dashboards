@@ -773,6 +773,58 @@ describe('IndexMigrator', () => {
       `"error migrating document"`
     );
   });
+
+  describe('cleanup old indices', () => {
+    test('calls deleteOldIndices when cleanup is enabled and migration succeeds', async () => {
+      const { client } = testOpts;
+
+      testOpts.documentMigrator.migrationVersion = { dashboard: '2.4.5' };
+
+      withIndex(client, { numOutOfDate: 1 });
+
+      // Mock for deleteOldIndices - no old indices to delete
+      client.indices.get.mockResolvedValueOnce(
+        opensearchClientMock.createSuccessTransportRequestPromise({}, { statusCode: 404 })
+      );
+
+      await new IndexMigrator(testOpts, { enabled: true, keepVersions: 1 }).migrate();
+
+      // Verify deleteOldIndices was called (indices.get with wildcard pattern)
+      expect(client.indices.get).toHaveBeenCalledWith({ index: '.kibana_*' }, { ignore: [404] });
+    });
+
+    test('does not call deleteOldIndices when cleanup is disabled', async () => {
+      const { client } = testOpts;
+
+      testOpts.documentMigrator.migrationVersion = { dashboard: '2.4.5' };
+
+      withIndex(client, { numOutOfDate: 1 });
+
+      await new IndexMigrator(testOpts, { enabled: false, keepVersions: 1 }).migrate();
+
+      // Verify deleteOldIndices was NOT called
+      expect(client.indices.get).not.toHaveBeenCalledWith(
+        { index: '.kibana_*' },
+        { ignore: [404] }
+      );
+    });
+
+    test('does not call deleteOldIndices when no cleanup config provided', async () => {
+      const { client } = testOpts;
+
+      testOpts.documentMigrator.migrationVersion = { dashboard: '2.4.5' };
+
+      withIndex(client, { numOutOfDate: 1 });
+
+      await new IndexMigrator(testOpts).migrate();
+
+      // Verify deleteOldIndices was NOT called
+      expect(client.indices.get).not.toHaveBeenCalledWith(
+        { index: '.kibana_*' },
+        { ignore: [404] }
+      );
+    });
+  });
 });
 
 function withIndex(

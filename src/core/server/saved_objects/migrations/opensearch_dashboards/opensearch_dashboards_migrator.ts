@@ -172,27 +172,30 @@ export class OpenSearchDashboardsMigrator {
     });
 
     const migrators = Object.keys(indexMap).map((index) => {
-      return new IndexMigrator({
-        batchSize: this.savedObjectsConfig.batchSize,
-        client: this.client,
-        documentMigrator: this.documentMigrator,
-        index,
-        log: this.log,
-        mappingProperties: indexMap[index].typeMappings,
-        pollInterval: this.savedObjectsConfig.pollInterval,
-        scrollDuration: this.savedObjectsConfig.scrollDuration,
-        serializer: this.serializer,
-        // Only necessary for the migrator of the opensearch-dashboards index.
-        obsoleteIndexTemplatePattern:
-          index === opensearchDashboardsIndexName
-            ? 'opensearch_dashboards_index_template*'
+      return new IndexMigrator(
+        {
+          batchSize: this.savedObjectsConfig.batchSize,
+          client: this.client,
+          documentMigrator: this.documentMigrator,
+          index,
+          log: this.log,
+          mappingProperties: indexMap[index].typeMappings,
+          pollInterval: this.savedObjectsConfig.pollInterval,
+          scrollDuration: this.savedObjectsConfig.scrollDuration,
+          serializer: this.serializer,
+          // Only necessary for the migrator of the opensearch-dashboards index.
+          obsoleteIndexTemplatePattern:
+            index === opensearchDashboardsIndexName
+              ? 'opensearch_dashboards_index_template*'
+              : undefined,
+          typesToDelete: this.savedObjectsConfig.delete.enabled
+            ? this.savedObjectsConfig.delete.types
             : undefined,
-        typesToDelete: this.savedObjectsConfig.delete.enabled
-          ? this.savedObjectsConfig.delete.types
-          : undefined,
-        convertToAliasScript: indexMap[index].script,
-        opensearchDashboardsRawConfig: this.opensearchDashboardsRawConfig,
-      });
+          convertToAliasScript: indexMap[index].script,
+          opensearchDashboardsRawConfig: this.opensearchDashboardsRawConfig,
+        },
+        this.savedObjectsConfig.cleanup
+      );
     });
 
     return Promise.all(migrators.map((migrator) => migrator.migrate()));
