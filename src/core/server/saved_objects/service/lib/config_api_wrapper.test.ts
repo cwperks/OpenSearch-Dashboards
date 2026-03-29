@@ -178,4 +178,18 @@ describe('ConfigApiWrapper', () => {
       expect(SavedObjectsErrorHelpers.isNotFoundError(error as Error)).toBe(true);
     }
   });
+
+  it('adds the advanced settings permission to forbidden get errors', async () => {
+    const { client } = createWrapper({
+      transportRequest: jest.fn().mockRejectedValue({ statusCode: 403, message: 'forbidden' }),
+    });
+
+    try {
+      await client.get('config', '3.6.0');
+      fail('expected get to throw');
+    } catch (error) {
+      expect(SavedObjectsErrorHelpers.isForbiddenError(error as Error)).toBe(true);
+      expect((error as Error).message).toContain('osd:admin/advanced_settings/get');
+    }
+  });
 });

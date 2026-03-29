@@ -243,10 +243,15 @@ export class AdvancedSettingsComponent extends Component<
   };
 
   saveConfig = async (changes: SettingsChanges) => {
-    const arr = Object.entries(changes).map(([key, value]) =>
-      this.props.uiSettings.set(key, value)
+    const results = await Promise.all(
+      Object.entries(changes).map(([key, value]) => this.props.uiSettings.set(key, value))
     );
-    return Promise.all(arr);
+
+    if (results.some((result) => result === false)) {
+      throw new Error('Unable to save one or more advanced settings');
+    }
+
+    return results;
   };
 
   render() {

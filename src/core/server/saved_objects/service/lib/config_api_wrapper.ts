@@ -12,6 +12,7 @@ import {
 } from '../saved_objects_client';
 import { SavedObjectsErrorHelpers } from './errors';
 import { SavedObjectsSerializer } from '../../serialization';
+import { Logger } from '../../../logging';
 
 /**
  * Wrapper that routes config type operations to the advanced settings API.
@@ -21,7 +22,8 @@ import { SavedObjectsSerializer } from '../../serialization';
 export class ConfigApiWrapper {
   constructor(
     private readonly getOpenSearchClient: (request: any) => any,
-    private readonly index: string
+    private readonly index: string,
+    private readonly logger: Logger
   ) {}
 
   public wrapperFactory: SavedObjectsClientWrapperFactory = (wrapperOptions) => {
@@ -47,12 +49,18 @@ export class ConfigApiWrapper {
       return savedObject;
     };
 
-    const normalizeApiError = (type: string, id: string, apiError: any): never => {
+    const normalizeApiError = (
+      type: string,
+      id: string,
+      apiError: any,
+      requiredPermission: string
+    ): never => {
+      const permissionMessage = `Missing permission "${requiredPermission}" to access advanced settings.`;
       if (apiError?.statusCode === 401) {
-        throw SavedObjectsErrorHelpers.decorateNotAuthorizedError(apiError);
+        throw SavedObjectsErrorHelpers.decorateNotAuthorizedError(apiError, permissionMessage);
       }
       if (apiError?.statusCode === 403) {
-        throw SavedObjectsErrorHelpers.decorateForbiddenError(apiError);
+        throw SavedObjectsErrorHelpers.decorateForbiddenError(apiError, permissionMessage);
       }
       if (apiError?.statusCode === 404) {
         throw SavedObjectsErrorHelpers.createGenericNotFoundError(type, id);
@@ -88,10 +96,18 @@ export class ConfigApiWrapper {
 
     const getWithApi = async <T = unknown>(type: string, id: string): Promise<SavedObject<T>> => {
       if (type !== 'config' || !opensearchClient) {
+        if (type === 'config') {
+          this.logger.debug(
+            `Advanced settings GET using saved objects fallback for id [${id}] in index [${this.index}]`
+          );
+        }
         return wrapperOptions.client.get<T>(type, id);
       }
 
       const rawId = serializer.generateRawId(undefined, type, id);
+      this.logger.debug(
+        `Advanced settings GET using backend API for id [${id}] rawId [${rawId}] in index [${this.index}]`
+      );
 
       try {
         const response = await opensearchClient.transport.request({
@@ -103,7 +119,7 @@ export class ConfigApiWrapper {
 
         return rawToSavedObject<T>(type, id, response.body);
       } catch (apiError: any) {
-        normalizeApiError(type, id, apiError);
+        normalizeApiError(type, id, apiError, 'osd:admin/advanced_settings/get');
       }
     };
 
@@ -113,10 +129,20 @@ export class ConfigApiWrapper {
       options: SavedObjectsCreateOptions = {}
     ): Promise<SavedObject<T>> => {
       if (type !== 'config' || !opensearchClient || !options.id) {
+        if (type === 'config') {
+          this.logger.debug(
+            `Advanced settings CREATE using saved objects fallback for id [${
+              options.id ?? '<auto>'
+            }] in index [${this.index}]`
+          );
+        }
         return wrapperOptions.client.create<T>(type, attributes, options);
       }
 
       const raw = buildRawConfigDoc(type, options.id, attributes, options);
+      this.logger.debug(
+        `Advanced settings CREATE using backend API for id [${options.id}] rawId [${raw._id}] in index [${this.index}]`
+      );
 
       try {
         await opensearchClient.transport.request({
@@ -129,7 +155,7 @@ export class ConfigApiWrapper {
 
         return rawToSavedObject<T>(type, options.id, raw._source);
       } catch (apiError: any) {
-        normalizeApiError(type, options.id, apiError);
+        normalizeApiError(type, options.id, apiError, 'osd:admin/advanced_settings/write');
       }
     };
 
@@ -140,9 +166,17 @@ export class ConfigApiWrapper {
       options: SavedObjectsUpdateOptions = {}
     ): Promise<SavedObjectsUpdateResponse<T>> => {
       if (type !== 'config' || !opensearchClient) {
+        if (type === 'config') {
+          this.logger.debug(
+            `Advanced settings UPDATE using saved objects fallback for id [${id}] in index [${this.index}]`
+          );
+        }
         return wrapperOptions.client.update<T>(type, id, attributes, options);
       }
 
+      this.logger.debug(
+        `Advanced settings UPDATE using backend API for id [${id}] in index [${this.index}]`
+      );
       const existing = await getWithApi<T>(type, id);
       const mergedAttributes = {
         ...(existing.attributes as Record<string, any>),
@@ -158,6 +192,9 @@ export class ConfigApiWrapper {
       });
 
       try {
+        this.logger.debug(
+          `Advanced settings UPDATE sending backend API request for id [${id}] rawId [${raw._id}] in index [${this.index}]`
+        );
         await opensearchClient.transport.request({
           method: 'PUT',
           path: `/_opensearch_dashboards/advanced_settings/${encodeURIComponent(
@@ -168,7 +205,7 @@ export class ConfigApiWrapper {
 
         return rawToSavedObject<T>(type, id, raw._source);
       } catch (apiError: any) {
-        normalizeApiError(type, id, apiError);
+        normalizeApiError(type, id, apiError, 'osd:admin/advanced_settings/write');
       }
     };
 
