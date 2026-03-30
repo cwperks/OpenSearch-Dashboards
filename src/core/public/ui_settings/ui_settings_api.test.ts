@@ -197,6 +197,21 @@ describe('#batchSet', () => {
     await expect(uiSettingsApi.batchSet('foo', 'bar')).rejects.toThrowErrorMatchingSnapshot();
   });
 
+  it('surfaces backend permission messages on 403 responses', async () => {
+    fetchMock.mock('*', {
+      status: 403,
+      body: {
+        message:
+          'Missing permission "osd:admin/advanced_settings/get" to access advanced settings.',
+      },
+    });
+
+    const { uiSettingsApi } = setup(UiSettingScope.GLOBAL);
+    await expect(uiSettingsApi.batchSet('foo', 'bar')).rejects.toThrowErrorMatchingInlineSnapshot(
+      `"Missing permission \\"osd:admin/advanced_settings/get\\" to access advanced settings."`
+    );
+  });
+
   it('rejects all promises for batched requests that fail', async () => {
     fetchMock.once('*', {
       body: { settings: {} },
