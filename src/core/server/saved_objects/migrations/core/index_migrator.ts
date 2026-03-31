@@ -35,19 +35,27 @@ import { migrateRawDocs } from './migrate_raw_docs';
 import { Context, migrationContext, MigrationOpts } from './migration_context';
 import { coordinateMigration, MigrationResult } from './migration_coordinator';
 
+export interface CleanupConfig {
+  enabled: boolean;
+  keepVersions: number;
+}
+
 /*
  * Core logic for migrating the mappings and documents in an index.
  */
 export class IndexMigrator {
   private opts: MigrationOpts;
+  private cleanupConfig?: CleanupConfig;
 
   /**
    * Creates an instance of IndexMigrator.
    *
    * @param {MigrationOpts} opts
+   * @param {CleanupConfig} cleanupConfig
    */
-  constructor(opts: MigrationOpts) {
+  constructor(opts: MigrationOpts, cleanupConfig?: CleanupConfig) {
     this.opts = opts;
+    this.cleanupConfig = cleanupConfig;
   }
 
   /**
@@ -58,6 +66,7 @@ export class IndexMigrator {
    */
   public async migrate(): Promise<MigrationResult> {
     const context = await migrationContext(this.opts);
+    const cleanupConfig = this.cleanupConfig;
 
     return coordinateMigration({
       log: context.log,
@@ -70,7 +79,20 @@ export class IndexMigrator {
 
       async runMigration() {
         if (await requiresMigration(context)) {
-          return migrateIndex(context);
+          const result = await migrateIndex(context);
+
+          // Cleanup old indices after successful migration
+          if (cleanupConfig?.enabled && result.status === 'migrated') {
+            await Index.deleteOldIndices(
+              context.client,
+              context.dest.indexName,
+              context.alias,
+              cleanupConfig.keepVersions,
+              context.log
+            );
+          }
+
+          return result;
         }
 
         return { status: 'skipped' };

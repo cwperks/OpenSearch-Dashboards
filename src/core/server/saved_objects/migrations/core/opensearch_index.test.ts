@@ -592,6 +592,95 @@ describe('OpenSearchIndex', () => {
     });
   });
 
+  describe('deleteOldIndices', () => {
+    const mockLog = { info: jest.fn() };
+
+    beforeEach(() => {
+      mockLog.info.mockClear();
+    });
+
+    test('deletes indices older than keepVersions', async () => {
+      client.indices.get.mockResolvedValue(
+        opensearchClientMock.createSuccessTransportRequestPromise({
+          '.kibana_1': {},
+          '.kibana_2': {},
+          '.kibana_3': {},
+          '.kibana_4': {},
+        })
+      );
+      client.indices.delete.mockResolvedValue(
+        opensearchClientMock.createSuccessTransportRequestPromise({} as any)
+      );
+
+      const deleted = await Index.deleteOldIndices(client, '.kibana_4', '.kibana', 1, mockLog);
+
+      expect(deleted.sort()).toEqual(['.kibana_1', '.kibana_2']);
+      expect(client.indices.delete).toHaveBeenCalledWith({
+        index: expect.arrayContaining(['.kibana_1', '.kibana_2']),
+      });
+      expect(mockLog.info).toHaveBeenCalled();
+    });
+
+    test('keeps all versions when keepVersions covers them', async () => {
+      client.indices.get.mockResolvedValue(
+        opensearchClientMock.createSuccessTransportRequestPromise({
+          '.kibana_1': {},
+          '.kibana_2': {},
+        })
+      );
+
+      const deleted = await Index.deleteOldIndices(client, '.kibana_2', '.kibana', 1, mockLog);
+
+      expect(deleted).toEqual([]);
+      expect(client.indices.delete).not.toHaveBeenCalled();
+    });
+
+    test('handles 404 when no indices exist', async () => {
+      client.indices.get.mockResolvedValue(
+        opensearchClientMock.createSuccessTransportRequestPromise({}, { statusCode: 404 })
+      );
+
+      const deleted = await Index.deleteOldIndices(client, '.kibana_1', '.kibana', 1, mockLog);
+
+      expect(deleted).toEqual([]);
+    });
+
+    test('ignores indices that do not match version pattern', async () => {
+      client.indices.get.mockResolvedValue(
+        opensearchClientMock.createSuccessTransportRequestPromise({
+          '.kibana_1': {},
+          '.kibana_2': {},
+          '.kibana_task_manager_1': {},
+          '.kibana_other': {},
+        })
+      );
+      client.indices.delete.mockResolvedValue(
+        opensearchClientMock.createSuccessTransportRequestPromise({} as any)
+      );
+
+      const deleted = await Index.deleteOldIndices(client, '.kibana_2', '.kibana', 0, mockLog);
+
+      expect(deleted).toEqual(['.kibana_1']);
+    });
+
+    test('deletes all old indices when keepVersions is 0', async () => {
+      client.indices.get.mockResolvedValue(
+        opensearchClientMock.createSuccessTransportRequestPromise({
+          '.kibana_1': {},
+          '.kibana_2': {},
+          '.kibana_3': {},
+        })
+      );
+      client.indices.delete.mockResolvedValue(
+        opensearchClientMock.createSuccessTransportRequestPromise({} as any)
+      );
+
+      const deleted = await Index.deleteOldIndices(client, '.kibana_3', '.kibana', 0, mockLog);
+
+      expect(deleted.sort()).toEqual(['.kibana_1', '.kibana_2']);
+    });
+  });
+
   describe('migrationsUpToDate', () => {
     // A helper to reduce boilerplate in the hasMigration tests that follow.
     async function testMigrationsUpToDate({
