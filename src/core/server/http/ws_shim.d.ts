@@ -35,7 +35,5 @@ declare module 'ws' {
     close(): void;
   }
 
-  export const WebSocketServer: {
-    new (options: { noServer?: boolean }): WebSocketServer;
-  };
+  export const WebSocketServer: new (options: { noServer?: boolean }) => WebSocketServer;
 }
