@@ -52,35 +52,6 @@ declare module '*.txt' {
   export default content;
 }
 
-declare module 'ws' {
-  import { EventEmitter } from 'events';
-  import { IncomingMessage } from 'http';
-  import { Duplex } from 'stream';
-
-  export class WebSocket extends EventEmitter {
-    static readonly OPEN: number;
-    readyState: number;
-    send(data: string): void;
-    close(code?: number, reason?: string): void;
-    on(event: 'message', listener: (data: string | Buffer) => void): this;
-    on(event: 'close', listener: (code: number, reason: Buffer) => void): this;
-    on(event: 'error', listener: (error: Error) => void): this;
-  }
-
-  export interface WebSocketServer {
-    clients: Set<WebSocket>;
-    handleUpgrade(
-      request: IncomingMessage,
-      socket: Duplex,
-      head: Buffer,
-      callback: (socket: WebSocket) => void
-    ): void;
-    close(): void;
-  }
-
-  export const WebSocketServer: new (options: { noServer?: boolean }) => WebSocketServer;
-}
-
 type MethodKeysOf<T> = {
   [K in keyof T]: T[K] extends (...args: any[]) => any ? K : never;
 }[keyof T];
