@@ -56,6 +56,10 @@ export interface HitsCounterProps {
    * query ran time in ms
    */
   elapsedMs?: number;
+  /**
+   * optional override for the rows count display (useful for filtered results)
+   */
+  rowsCountOverride?: number;
 }
 
 export function HitsCounter({
@@ -64,8 +68,9 @@ export function HitsCounter({
   onResetQuery,
   rows,
   elapsedMs,
+  rowsCountOverride,
 }: HitsCounterProps) {
-  const rowsCount = rows?.length || 0;
+  const rowsCount = rowsCountOverride !== undefined ? rowsCountOverride : rows?.length || 0;
 
   return (
     <I18nProvider>
@@ -78,11 +83,11 @@ export function HitsCounter({
         alignItems="center"
       >
         <EuiFlexItem grow={false}>
-          <EuiText size="s">
+          <EuiText size="xs" color="subdued">
             {hits ? (
               <FormattedMessage
                 id="explore.discover.hitsResultTitle"
-                defaultMessage="{rowsCount} of {hits} results in {elapsedMs} ms"
+                defaultMessage="{rowsCount} / {hits} hits · {elapsedMs} ms"
                 values={{
                   rowsCount: (
                     <strong data-test-subj="discoverQueryRowsCount">
@@ -100,7 +105,7 @@ export function HitsCounter({
             ) : (
               <FormattedMessage
                 id="explore.discover.noHitsResultTitle"
-                defaultMessage="{rowsCount} results in {elapsedMs} ms"
+                defaultMessage="{rowsCount} hits · {elapsedMs} ms"
                 values={{
                   rowsCount: (
                     <strong data-test-subj="discoverQueryRowsCount">

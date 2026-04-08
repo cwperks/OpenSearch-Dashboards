@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import './visualization_container.scss';
 import { EuiPanel } from '@elastic/eui';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import moment from 'moment';
@@ -94,7 +93,10 @@ export const VisualizationContainer = React.memo(() => {
         paddingSize="none"
       >
         <div className="exploreVisPanel__inner">
-          {visualizationBuilder.renderVisualization({ searchContext, onSelectTimeRange })}
+          {visualizationBuilder.renderVisualization({
+            timeRange: searchContext?.timeRange,
+            onSelectTimeRange,
+          })}
         </div>
       </EuiPanel>
     </div>
