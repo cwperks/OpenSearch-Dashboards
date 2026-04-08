@@ -346,7 +346,6 @@ export class SavedObjectsApiWrapper {
       create: createWithApi,
       update: updateWithApi,
       delete: deleteWithApi,
-      find: findWithApi,
     };
   };
 }
