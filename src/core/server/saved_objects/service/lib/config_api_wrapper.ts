@@ -119,7 +119,7 @@ export class ConfigApiWrapper {
 
         return rawToSavedObject<T>(type, id, response.body);
       } catch (apiError: any) {
-        normalizeApiError(type, id, apiError, 'osd:admin/advanced_settings/get');
+        return normalizeApiError(type, id, apiError, 'osd:admin/advanced_settings/get');
       }
     };
 
@@ -139,7 +139,7 @@ export class ConfigApiWrapper {
         return wrapperOptions.client.create<T>(type, attributes, options);
       }
 
-      const raw = buildRawConfigDoc(type, options.id, attributes, options);
+      const raw = buildRawConfigDoc(type, options.id, attributes, options as any);
       this.logger.debug(
         `Advanced settings CREATE using backend API for id [${options.id}] rawId [${raw._id}] in index [${this.index}]`
       );
@@ -155,7 +155,7 @@ export class ConfigApiWrapper {
 
         return rawToSavedObject<T>(type, options.id, raw._source);
       } catch (apiError: any) {
-        normalizeApiError(type, options.id, apiError, 'osd:admin/advanced_settings/write');
+        return normalizeApiError(type, options.id, apiError, 'osd:admin/advanced_settings/write');
       }
     };
 
@@ -205,7 +205,7 @@ export class ConfigApiWrapper {
 
         return rawToSavedObject<T>(type, id, raw._source);
       } catch (apiError: any) {
-        normalizeApiError(type, id, apiError, 'osd:admin/advanced_settings/write');
+        return normalizeApiError(type, id, apiError, 'osd:admin/advanced_settings/write');
       }
     };
 
