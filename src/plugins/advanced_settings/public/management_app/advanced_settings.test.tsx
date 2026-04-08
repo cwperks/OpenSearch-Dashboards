@@ -359,4 +359,29 @@ describe('AdvancedSettings', () => {
     );
     expect(component).toMatchSnapshot();
   });
+
+  it('should throw when a uiSettings save resolves false', async () => {
+    const config = mockConfig().core.uiSettings;
+    config.set = jest.fn().mockResolvedValueOnce(false);
+
+    const component = mountWithI18nProvider(
+      <AdvancedSettingsComponent
+        queryText="test:string:setting"
+        enableSaving={true}
+        toasts={notificationServiceMock.createStartContract().toasts}
+        dockLinks={docLinksServiceMock.createStartContract().links}
+        uiSettings={config}
+        componentRegistry={new ComponentRegistry().start}
+        useUpdatedUX={false}
+        navigationUI={navigationUI}
+        application={applicationMock}
+      />
+    );
+
+    await expect(
+      (component.instance() as AdvancedSettingsComponent).saveConfig({
+        'test:string:setting': 'new value',
+      })
+    ).rejects.toThrow('Unable to save one or more advanced settings');
+  });
 });

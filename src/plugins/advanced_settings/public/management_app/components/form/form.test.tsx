@@ -305,6 +305,52 @@ describe('Form', () => {
         ),
       })
     );
+    expect(toasts.addSuccess).not.toHaveBeenCalled();
+  });
+
+  it('should show a success toast when saving settings that do not require a page reload', async () => {
+    const toasts = notificationServiceMock.createStartContract().toasts;
+    const wrapper = mountWithI18nProvider(
+      <Form
+        settings={settings}
+        visibleSettings={settings}
+        categories={categories}
+        categoryCounts={categoryCounts}
+        save={save}
+        clearQuery={clearQuery}
+        showNoResultsMessage={true}
+        enableSaving={false}
+        toasts={toasts}
+        dockLinks={{} as any}
+      />
+    );
+
+    act(() => {
+      (wrapper.instance() as Form).setState({
+        unsavedChanges: {
+          'setting:test': {
+            value: 'changedValue',
+          },
+        },
+      });
+    });
+    wrapper.update();
+
+    act(() => {
+      const saveButton = document.querySelector(
+        '[data-test-subj="advancedSetting-saveButton"]'
+      ) as HTMLElement;
+      saveButton.click();
+    });
+
+    expect(save).toHaveBeenCalledWith({ 'setting:test': 'changedValue' });
+    await save({ 'setting:test': 'changedValue' });
+    expect(toasts.addSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Saved advanced settings',
+      })
+    );
+    expect(toasts.add).not.toHaveBeenCalled();
   });
 
   it('should save an array typed field when user provides an empty string correctly', () => {
