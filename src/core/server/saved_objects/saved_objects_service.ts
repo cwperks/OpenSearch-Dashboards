@@ -66,6 +66,7 @@ import { SavedObjectsSerializer } from './serialization';
 import { registerRoutes } from './routes';
 import { ServiceStatus, ServiceStatusLevels } from '../status';
 import { ConfigApiWrapper } from './service/lib/config_api_wrapper';
+import { SavedObjectsApiWrapper } from './service/lib/saved_objects_api_wrapper';
 import { calculateStatus$ } from './status';
 import { createMigrationOpenSearchClient } from './migrations/core/';
 import { Config } from '../config';
@@ -540,6 +541,18 @@ export class SavedObjectsService
       Number.MIN_SAFE_INTEGER,
       'config-api-wrapper',
       configApiWrapper.wrapperFactory
+    );
+
+    // Register saved objects API wrapper (runs after config wrapper)
+    const savedObjectsApiWrapper = new SavedObjectsApiWrapper(
+      (request) => client.asScoped(request).asCurrentUser,
+      opensearchDashboardsConfig.index,
+      this.logger
+    );
+    clientProvider.addClientWrapperFactory(
+      Number.MIN_SAFE_INTEGER + 1,
+      'saved-objects-api-wrapper',
+      savedObjectsApiWrapper.wrapperFactory
     );
 
     this.clientFactoryWrappers.forEach(({ id, factory, priority }) => {
