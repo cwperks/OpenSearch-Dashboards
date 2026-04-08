@@ -266,6 +266,7 @@ export class LegacyService implements CoreService {
         registerAuth: setupDeps.core.http.registerAuth,
         registerOnPostAuth: setupDeps.core.http.registerOnPostAuth,
         registerOnPreResponse: setupDeps.core.http.registerOnPreResponse,
+        registerWebSocketRoute: setupDeps.core.http.registerWebSocketRoute,
         basePath: setupDeps.core.http.basePath,
         auth: {
           get: setupDeps.core.http.auth.get,

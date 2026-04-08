@@ -126,6 +126,7 @@ export class HttpService
         registerRouter(router);
         return router;
       },
+      registerWebSocketRoute: serverContract.registerWebSocketRoute,
 
       registerRouteHandlerContext: <T extends keyof RequestHandlerContext>(
         pluginOpaqueId: PluginOpaqueId,
