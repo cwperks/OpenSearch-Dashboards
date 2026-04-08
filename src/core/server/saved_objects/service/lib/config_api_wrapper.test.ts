@@ -31,7 +31,18 @@ describe('ConfigApiWrapper', () => {
       },
     };
 
-    const wrapper = new ConfigApiWrapper(() => opensearchClient, index);
+    const mockLogger = {
+      debug: jest.fn(),
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      fatal: jest.fn(),
+      trace: jest.fn(),
+      log: jest.fn(),
+      get: jest.fn(),
+    } as any;
+
+    const wrapper = new ConfigApiWrapper(() => opensearchClient, index, mockLogger);
 
     return {
       transportRequest,
