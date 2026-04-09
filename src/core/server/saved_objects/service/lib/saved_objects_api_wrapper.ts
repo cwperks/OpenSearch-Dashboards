@@ -147,7 +147,7 @@ export class SavedObjectsApiWrapper {
           method: 'PUT',
           path: `/_opensearch_dashboards/saved_objects/${encodeURIComponent(
             this.index
-          )}/${encodeURIComponent(raw._id)}?operation=create`,
+          )}/${encodeURIComponent(raw._id)}?operation=${options.overwrite ? 'update' : 'create'}`,
           body: raw._source,
         });
         return rawToSavedObject<T>(type, options.id, raw._source);
