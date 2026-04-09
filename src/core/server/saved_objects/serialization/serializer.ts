@@ -73,7 +73,16 @@ export class SavedObjectsSerializer {
    */
   public rawToSavedObject(doc: SavedObjectsRawDoc): SavedObjectSanitizedDoc {
     const { _id, _source, _seq_no, _primary_term } = doc;
-    const { type, namespace, namespaces, originId, workspaces, permissions } = _source;
+    const {
+      type,
+      namespace,
+      namespaces,
+      originId,
+      workspaces,
+      permissions,
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      all_shared_principals,
+    } = _source;
 
     const version =
       _seq_no != null || _primary_term != null
@@ -93,6 +102,7 @@ export class SavedObjectsSerializer {
       ...(_source.updated_at && { updated_at: _source.updated_at }),
       ...(version && { version }),
       ...(workspaces && { workspaces }),
+      ...(all_shared_principals && { all_shared_principals }),
     };
   }
 
@@ -116,6 +126,8 @@ export class SavedObjectsSerializer {
       references,
       workspaces,
       permissions,
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      all_shared_principals,
     } = savedObj;
     const source = {
       [type]: attributes,
@@ -128,6 +140,7 @@ export class SavedObjectsSerializer {
       ...(updated_at && { updated_at }),
       ...(workspaces && { workspaces }),
       ...(permissions && { permissions }),
+      ...(all_shared_principals && { all_shared_principals }),
     };
 
     return {

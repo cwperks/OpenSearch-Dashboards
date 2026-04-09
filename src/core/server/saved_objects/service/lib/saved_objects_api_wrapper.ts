@@ -245,11 +245,12 @@ export class SavedObjectsApiWrapper {
       options: SavedObjectsFindOptions
     ): Promise<SavedObjectsFindResponse<T>> => {
       if (!shouldUseApi()) {
+        this.logger.info('[SavedObjectsApiWrapper] FIND: no API available, falling back');
         return wrapperOptions.client.find<T>(options);
       }
 
-      this.logger.debug(
-        `Saved objects FIND via API for types [${options.type}] in [${this.index}]`
+      this.logger.info(
+        `[SavedObjectsApiWrapper] FIND via API for types [${options.type}] in [${this.index}]`
       );
 
       try {
@@ -267,7 +268,12 @@ export class SavedObjectsApiWrapper {
         const must: any[] = [];
         const filter: any[] = [];
         const types = Array.isArray(options.type) ? options.type : [options.type];
-        filter.push({ terms: { type: types } });
+        filter.push({
+          bool: {
+            should: [{ terms: { type: types } }, { terms: { 'type.keyword': types } }],
+            minimum_should_match: 1,
+          },
+        });
 
         if (options.search) {
           const fields = options.searchFields
@@ -321,6 +327,11 @@ export class SavedObjectsApiWrapper {
         const total = response.body?.hits?.total?.value ?? response.body?.hits?.total ?? 0;
 
         const savedObjects = hits.map((hit: any) => {
+          this.logger.info(
+            `[SavedObjectsApiWrapper] FIND hit: _id=${hit._id}, has_source=${!!hit._source}, type=${
+              hit._source?.type
+            }, keys=${Object.keys(hit._source || {}).join(',')}`
+          );
           const parsed = serializer.rawToSavedObject(hit as any);
           return { ...parsed, score: hit._score };
         });
@@ -332,11 +343,10 @@ export class SavedObjectsApiWrapper {
           page,
         } as SavedObjectsFindResponse<T>;
       } catch (apiError: any) {
-        if (isApiUnavailable(apiError)) {
-          this.logger.debug(`Saved objects API not available, falling back for FIND`);
-          return wrapperOptions.client.find<T>(options);
-        }
-        throw apiError;
+        this.logger.info(
+          `[SavedObjectsApiWrapper] FIND failed (${apiError?.statusCode} ${apiError?.message}), falling back`
+        );
+        return wrapperOptions.client.find<T>(options);
       }
     };
 
@@ -392,6 +402,7 @@ export class SavedObjectsApiWrapper {
       ...wrapperOptions.client,
       get: getWithApi,
       bulkGet: bulkGetWithApi as any,
+      find: findWithApi,
       create: createWithApi,
       update: updateWithApi,
       delete: deleteWithApi,
