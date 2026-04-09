@@ -118,9 +118,9 @@ export class SavedObjectsApiWrapper {
         });
         return rawToSavedObject<T>(type, id, response.body);
       } catch (apiError: any) {
-        if (isApiUnavailable(apiError)) {
+        if (isApiUnavailable(apiError) || apiError?.statusCode === 404) {
           this.logger.debug(
-            `Saved objects API not available, falling back for GET [${type}:${id}]`
+            `Saved objects API GET for [${type}:${id}] returned ${apiError?.statusCode}, falling back`
           );
           return wrapperOptions.client.get<T>(type, id);
         }
@@ -340,9 +340,58 @@ export class SavedObjectsApiWrapper {
       }
     };
 
+    const PROTECTED_TYPES = new Set(['dashboard', 'visualization']);
+
+    const bulkGetWithApi = async <T = unknown>(
+      objects: Array<{ id: string; type: string; fields?: string[] }> = [],
+      options: Record<string, any> = {}
+    ) => {
+      // Get all objects via normal client (proper response format with version)
+      const result = await wrapperOptions.client.bulkGet<T>(objects, options);
+
+      if (!shouldUseApi()) {
+        return result;
+      }
+
+      // For protected types, verify access via our saved objects API
+      const accessChecks = await Promise.all(
+        result.saved_objects.map(async (so: any) => {
+          if (!PROTECTED_TYPES.has(so.type) || so.error) {
+            return so;
+          }
+          try {
+            const rawId = serializer.generateRawId(undefined, so.type, so.id);
+            await opensearchClient.transport.request({
+              method: 'GET',
+              path: `/_opensearch_dashboards/saved_objects/${encodeURIComponent(
+                this.index
+              )}/${encodeURIComponent(rawId)}`,
+            });
+            return so; // access granted
+          } catch (apiError: any) {
+            if (apiError?.statusCode === 403) {
+              return {
+                id: so.id,
+                type: so.type,
+                error: {
+                  statusCode: 403,
+                  message: 'Forbidden',
+                  error: 'Forbidden',
+                },
+              };
+            }
+            return so; // non-403 errors (404 API unavailable etc) — pass through
+          }
+        })
+      );
+
+      return { saved_objects: accessChecks };
+    };
+
     return {
       ...wrapperOptions.client,
       get: getWithApi,
+      bulkGet: bulkGetWithApi as any,
       create: createWithApi,
       update: updateWithApi,
       delete: deleteWithApi,
