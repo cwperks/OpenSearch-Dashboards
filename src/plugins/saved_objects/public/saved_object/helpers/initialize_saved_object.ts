@@ -55,6 +55,11 @@ export async function intializeSavedObject(
   }
 
   const resp = await savedObjectsClient.get(opensearchType, savedObject.id);
+  if (resp.error) {
+    if ((resp.error as any).statusCode === 403) {
+      throw new Error("You don't have access to this " + opensearchType);
+    }
+  }
   const respMapped = {
     _id: resp.id,
     _type: resp.type,
