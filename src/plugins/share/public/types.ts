@@ -57,6 +57,7 @@ export interface ShareContext {
   sharingData: { [key: string]: unknown };
   isDirty: boolean;
   onClose: () => void;
+  isGenerallyAccessible?: boolean;
 }
 
 /**

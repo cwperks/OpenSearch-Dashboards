@@ -51,6 +51,7 @@ interface Props {
   basePath: string;
   post: HttpStart['post'];
   embedUrlParamExtensions?: UrlParamExtension[];
+  isGenerallyAccessible?: boolean;
 }
 
 export class ShareContextMenu extends Component<Props> {
@@ -72,33 +73,37 @@ export class ShareContextMenu extends Component<Props> {
     const panels: EuiContextMenuPanelDescriptor[] = [];
     const menuItems: ShareContextMenuPanelItem[] = [];
 
-    const permalinkPanel = {
-      id: panels.length + 1,
-      title: i18n.translate('share.contextMenu.permalinkPanelTitle', {
-        defaultMessage: 'Permalink',
-      }),
-      content: (
-        <UrlPanelContent
-          allowShortUrl={this.props.allowShortUrl}
-          objectId={this.props.objectId}
-          objectType={this.props.objectType}
-          basePath={this.props.basePath}
-          post={this.props.post}
-          shareableUrl={this.props.shareableUrl}
-        />
-      ),
-    };
-    menuItems.push({
-      name: i18n.translate('share.contextMenu.permalinksLabel', {
-        defaultMessage: 'Permalinks',
-      }),
-      icon: 'link',
-      panel: permalinkPanel.id,
-      sortOrder: 0,
-    });
-    panels.push(permalinkPanel);
+    const showLinkOptions = this.props.isGenerallyAccessible !== false;
 
-    if (this.props.allowEmbed) {
+    if (showLinkOptions) {
+      const permalinkPanel = {
+        id: panels.length + 1,
+        title: i18n.translate('share.contextMenu.permalinkPanelTitle', {
+          defaultMessage: 'Permalink',
+        }),
+        content: (
+          <UrlPanelContent
+            allowShortUrl={this.props.allowShortUrl}
+            objectId={this.props.objectId}
+            objectType={this.props.objectType}
+            basePath={this.props.basePath}
+            post={this.props.post}
+            shareableUrl={this.props.shareableUrl}
+          />
+        ),
+      };
+      menuItems.push({
+        name: i18n.translate('share.contextMenu.permalinksLabel', {
+          defaultMessage: 'Permalinks',
+        }),
+        icon: 'link',
+        panel: permalinkPanel.id,
+        sortOrder: 0,
+      });
+      panels.push(permalinkPanel);
+    }
+
+    if (showLinkOptions && this.props.allowEmbed) {
       const embedPanel = {
         id: panels.length + 1,
         title: i18n.translate('share.contextMenu.embedCodePanelTitle', {
