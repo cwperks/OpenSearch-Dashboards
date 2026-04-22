@@ -28,7 +28,7 @@
  * under the License.
  */
 
-import { isFunction, omitBy, union } from 'lodash';
+import { isEqual, isFunction, omitBy, union } from 'lodash';
 
 import { migrateAppState } from './migrate_app_state';
 import {
@@ -108,7 +108,9 @@ function createDefaultVisualizeAppState({ stateDefaults, osdUrlStateStorage }: A
      we update the state format at all and want to handle BWC, we must not only migrate the
      data stored with saved vis, but also any old state in the url.
    */
-  osdUrlStateStorage.set(STATE_STORAGE_KEY, initialState, { replace: true });
+  if (urlState) {
+    osdUrlStateStorage.set(STATE_STORAGE_KEY, initialState, { replace: true });
+  }
   const stateContainer = createStateContainer<VisualizeAppState, VisualizeAppStateTransitions>(
     initialState,
     pureTransitions
@@ -117,14 +119,24 @@ function createDefaultVisualizeAppState({ stateDefaults, osdUrlStateStorage }: A
     storageKey: STATE_STORAGE_KEY,
     stateContainer: {
       ...stateContainer,
+      get: () => stateContainer.get(),
       set: (state) => {
         if (state) {
-          // syncState utils requires to handle incoming "null" value
           stateContainer.set(state);
         }
       },
+      state$: stateContainer.state$,
     },
-    stateStorage: osdUrlStateStorage,
+    stateStorage: {
+      ...osdUrlStateStorage,
+      set: <T>(key: string, state: T, opts?: any) => {
+        // Don't write to URL if state matches defaults
+        if (isEqual(state, stateDefaults)) {
+          return;
+        }
+        return osdUrlStateStorage.set(key, state, opts);
+      },
+    },
   });
   // start syncing the appState with the ('_a') url
   startStateSync();
