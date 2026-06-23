@@ -189,6 +189,8 @@ export class Form extends PureComponent<FormProps> {
       this.clearAllUnsaved();
       if (requiresReload) {
         this.renderPageReloadToast();
+      } else {
+        this.renderSaveSuccessToast();
       }
     } catch (e) {
       this.props.toasts.addDanger(
@@ -219,6 +221,14 @@ export class Form extends PureComponent<FormProps> {
         </>
       ),
       color: 'success',
+    });
+  };
+
+  renderSaveSuccessToast = () => {
+    this.props.toasts.addSuccess({
+      title: i18n.translate('advancedSettings.form.saveSuccessMessage', {
+        defaultMessage: 'Saved advanced settings',
+      }),
     });
   };
 
