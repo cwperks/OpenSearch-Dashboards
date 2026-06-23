@@ -31,6 +31,7 @@
 import { Server } from '@hapi/hapi';
 import HapiStaticFiles from '@hapi/inert';
 import uuid from 'uuid';
+import { WebSocket, WebSocketServer } from 'ws';
 
 import { Logger, LoggerFactory } from '../logging';
 import { HttpConfig } from './http_config';
@@ -56,6 +57,12 @@ import { AuthHeadersStorage, GetAuthHeaders } from './auth_headers_storage';
 import { BasePath } from './base_path_service';
 import { HttpServiceSetup, HttpServerInfo } from './types';
 import { InternalDynamicConfigServiceStart } from '../config';
+import {
+  OpenSearchDashboardsWebSocketAdapter,
+  OpenSearchDashboardsWebSocketRequest,
+  WebSocketRouteConfig,
+  WebSocketRouteHandler,
+} from './web_socket';
 
 /** @internal */
 export interface HttpServerSetup {
@@ -75,6 +82,7 @@ export interface HttpServerSetup {
   registerAuth: HttpServiceSetup['registerAuth'];
   registerOnPostAuth: HttpServiceSetup['registerOnPostAuth'];
   registerOnPreResponse: HttpServiceSetup['registerOnPreResponse'];
+  registerWebSocketRoute: HttpServiceSetup['registerWebSocketRoute'];
   getAuthHeaders: GetAuthHeaders;
   auth: {
     get: GetAuthState;
@@ -96,7 +104,12 @@ export type LifecycleRegistrar = Pick<
 export class HttpServer {
   private server?: Server;
   private config?: HttpConfig;
+  private basePath?: BasePath;
   private registeredRouters = new Set<IRouter>();
+  private registeredWebSocketRoutes = new Map<
+    string,
+    { handler: WebSocketRouteHandler; webSocketServer: WebSocketServer }
+  >();
   private authRegistered = false;
   private cookieSessionStorageCreated = false;
   private stopped = false;
@@ -125,6 +138,21 @@ export class HttpServer {
     this.registeredRouters.add(router);
   }
 
+  private registerWebSocketRoute(config: WebSocketRouteConfig, handler: WebSocketRouteHandler) {
+    if (this.isListening()) {
+      throw new Error('WebSocket routes can be registered only when HTTP server is stopped.');
+    }
+
+    if (this.registeredWebSocketRoutes.has(config.path)) {
+      throw new Error(`A WebSocket route is already registered for path ${config.path}`);
+    }
+
+    this.registeredWebSocketRoutes.set(config.path, {
+      handler,
+      webSocketServer: new WebSocketServer({ noServer: true }),
+    });
+  }
+
   public async setup(config: HttpConfig): Promise<HttpServerSetup> {
     const serverOptions = getServerOptions(config);
     const listenerOptions = getListenerOptions(config);
@@ -133,9 +161,11 @@ export class HttpServer {
     this.config = config;
 
     const basePathService = new BasePath(config.basePath);
+    this.basePath = basePathService;
     this.setupBasePathRewrite(config, basePathService);
     this.setupConditionalCompression(config);
     this.setupRequestStateAssignment(config);
+    this.setupWebSocketUpgradeHandling();
 
     return {
       registerRouter: this.registerRouter.bind(this),
@@ -145,6 +175,7 @@ export class HttpServer {
       registerAuth: this.registerAuth.bind(this),
       registerOnPostAuth: this.registerOnPostAuth.bind(this),
       registerOnPreResponse: this.registerOnPreResponse.bind(this),
+      registerWebSocketRoute: this.registerWebSocketRoute.bind(this),
       createCookieSessionStorageFactory: <T>(cookieOptions: SessionStorageCookieOptions<T>) =>
         this.createCookieSessionStorageFactory(
           cookieOptions as SessionStorageCookieOptions<T & Record<string, any>>,
@@ -239,6 +270,13 @@ export class HttpServer {
       return;
     }
 
+    Array.from(this.registeredWebSocketRoutes.values()).forEach((route) => {
+      route.webSocketServer.clients.forEach((client: WebSocket) => {
+        client.close();
+      });
+      route.webSocketServer.close();
+    });
+
     const hasStarted = this.server.info.started > 0;
     if (hasStarted) {
       this.log.debug('stopping http server');
@@ -260,6 +298,39 @@ export class HttpServer {
     if (authRequired === false) {
       return false;
     }
+  }
+
+  private setupWebSocketUpgradeHandling() {
+    if (!this.server) {
+      return;
+    }
+
+    this.server.listener.on('upgrade', (request, socket, head) => {
+      try {
+        const requestUrl = new URL(
+          request.url ?? '/',
+          `http://${request.headers.host ?? 'localhost'}`
+        );
+        const normalizedPath = this.basePath?.remove(requestUrl.pathname) ?? requestUrl.pathname;
+        const route = this.registeredWebSocketRoutes.get(normalizedPath);
+
+        if (!route) {
+          socket.destroy();
+          return;
+        }
+
+        route.webSocketServer.handleUpgrade(request, socket, head, (webSocket: WebSocket) => {
+          const adaptedRequest: OpenSearchDashboardsWebSocketRequest = {
+            url: request.url ?? normalizedPath,
+            headers: request.headers,
+          };
+
+          route.handler(new OpenSearchDashboardsWebSocketAdapter(webSocket), adaptedRequest);
+        });
+      } catch (error) {
+        socket.destroy();
+      }
+    });
   }
 
   private setupBasePathRewrite(config: HttpConfig, basePathService: BasePath) {

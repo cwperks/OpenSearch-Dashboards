@@ -106,3 +106,4 @@ export {
 export * from './types';
 export { BasePath, IBasePath } from './base_path_service';
 export { getRedirectUrl } from './http_tools';
+export * from './web_socket';
