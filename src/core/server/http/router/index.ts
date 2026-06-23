@@ -72,6 +72,13 @@ export {
 } from './response';
 
 export { IOpenSearchDashboardsSocket } from './socket';
+export {
+  IOpenSearchDashboardsWebSocket,
+  OpenSearchDashboardsWebSocketRequest,
+  OpenSearchDashboardsWebSocketAdapter,
+  WebSocketRouteConfig,
+  WebSocketRouteHandler,
+} from '../web_socket';
 
 export {
   RouteValidatorConfig,

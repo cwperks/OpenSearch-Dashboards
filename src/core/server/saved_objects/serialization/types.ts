@@ -73,6 +73,7 @@ interface SavedObjectDoc<T = unknown> {
   originId?: string;
   workspaces?: SavedObject['workspaces'];
   permissions?: Permissions;
+  all_shared_principals?: string[];
 }
 
 interface Referencable {

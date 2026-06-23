@@ -29,6 +29,8 @@
  */
 
 import { CoreStart } from 'opensearch-dashboards/public';
+import { isEqual } from 'lodash';
+
 import {
   createStateContainer,
   IOsdUrlStateStorage,
@@ -83,18 +85,22 @@ export const syncQueryStateWithUrl = (
   });
 
   // if there weren't any initial state in url,
-  // then put _g key into url
-  if (!initialStateFromUrl) {
-    osdUrlStateStorage.set<QueryState>(GLOBAL_STATE_STORAGE_KEY, initialState, {
-      replace: true,
-    });
-  }
+  // no need to pollute the url with defaults
+  // state will be written to url when user makes changes
 
   // trigger initial syncing from state container to services if needed
   globalQueryStateContainer.set(initialState);
 
   const { start, stop: stopSyncingWithUrl } = syncState({
-    stateStorage: osdUrlStateStorage,
+    stateStorage: {
+      ...osdUrlStateStorage,
+      set: <T>(key: string, state: T, opts?: any) => {
+        if (isEqual(state, defaultState)) {
+          return;
+        }
+        return osdUrlStateStorage.set(key, state, opts);
+      },
+    },
     stateContainer: {
       ...globalQueryStateContainer,
       set: (state) => {

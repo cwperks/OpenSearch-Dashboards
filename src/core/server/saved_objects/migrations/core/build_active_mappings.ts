@@ -209,6 +209,9 @@ function defaultMapping(): IndexMapping {
           },
         },
       },
+      all_shared_principals: {
+        type: 'keyword',
+      },
     },
   };
 }

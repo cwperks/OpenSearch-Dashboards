@@ -80,7 +80,44 @@ const TopNav = ({
   const { TopNavMenu } = services.navigation.ui;
   const { setHeaderActionMenu, visualizeCapabilities, keyboardShortcut } = services;
   const { embeddableHandler, vis } = visInstance;
+  const savedVis = 'savedVis' in visInstance ? visInstance.savedVis : undefined;
   const [inspectorSession, setInspectorSession] = useState<OverlayRef>();
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [canShare, setCanShare] = useState(true);
+
+  const [sharingVersion, setSharingVersion] = useState(0);
+
+  useEffect(() => {
+    const handler = () => setSharingVersion((v) => v + 1);
+    window.addEventListener('resourceSharingChanged', handler);
+    return () => window.removeEventListener('resourceSharingChanged', handler);
+  }, []);
+
+  useEffect(() => {
+    if (!savedVis?.id) return;
+    const qualifiedId = `visualization:${savedVis.id}`;
+    services.http
+      .get('/api/resource/access', {
+        query: { resourceId: qualifiedId, resourceType: 'visualization' },
+      })
+      .then((resp: any) => {
+        const ga = resp?.access?.general_access;
+        const priv = !ga;
+        setIsPrivate(priv);
+        if (priv) {
+          services.chrome.setBadge({ text: '🔒', tooltip: 'This visualization is private' });
+        } else {
+          services.chrome.setBadge(undefined as any);
+        }
+      })
+      .catch(() => {
+        setIsPrivate(false);
+        services.chrome.setBadge(undefined as any);
+      });
+    return () => {
+      services.chrome.setBadge(undefined as any);
+    };
+  }, [savedVis?.id, services.http, services.chrome, sharingVersion]);
   const openInspector = useCallback(() => {
     const session = embeddableHandler.openInspector();
     setInspectorSession(session);

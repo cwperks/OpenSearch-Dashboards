@@ -50,10 +50,26 @@ export class ShareMenuManager {
        * the given `anchorElement`. If the context menu is already opened, a call to this method closes it.
        * @param options
        */
-      toggleShareContextMenu: (options: ShowShareMenuOptions) => {
+      toggleShareContextMenu: async (options: ShowShareMenuOptions) => {
         const menuItems = shareRegistry.getShareMenuItems({ ...options, onClose: this.onClose });
+        let isGenerallyAccessible = options.isGenerallyAccessible;
+        if (isGenerallyAccessible === undefined && options.objectId && options.objectType) {
+          try {
+            const resp: any = await core.http.get('/api/resource/view', {
+              query: {
+                resourceId: `${options.objectType}:${options.objectId}`,
+                resourceType: options.objectType,
+              },
+            });
+            const ga = resp?.sharing_info?.share_with?.general_access;
+            isGenerallyAccessible = typeof ga === 'string' && ga.length > 0;
+          } catch {
+            isGenerallyAccessible = undefined;
+          }
+        }
         this.toggleShareContextMenu({
           ...options,
+          isGenerallyAccessible,
           menuItems,
           post: core.http.post,
           basePath: core.http.basePath.getBasePath(),
@@ -82,6 +98,7 @@ export class ShareMenuManager {
     post,
     basePath,
     embedUrlParamExtensions,
+    isGenerallyAccessible,
   }: ShowShareMenuOptions & {
     menuItems: ShareMenuItem[];
     post: HttpStart['post'];
@@ -117,6 +134,7 @@ export class ShareMenuManager {
             post={post}
             basePath={basePath}
             embedUrlParamExtensions={embedUrlParamExtensions}
+            isGenerallyAccessible={isGenerallyAccessible}
           />
         </EuiWrappingPopover>
       </I18nProvider>

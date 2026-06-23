@@ -169,7 +169,7 @@ export class UiSettingsApi {
       });
     } catch (err) {
       if (err.response) {
-        if (err.response.status === 400) {
+        if (err.body?.message) {
           throw new Error(err.body.message);
         }
         if (err.response.status > 400) {
