@@ -25,7 +25,7 @@ import {
   getAWSCredential,
   getCredential,
   getDataSource,
-  getDataSourceInternal,
+  getDataSourceWithCredentials,
   getAuthenticationMethod,
   generateCacheKey,
 } from './configure_client_utils';
@@ -35,7 +35,7 @@ export const configureClient = async (
   {
     dataSourceId,
     savedObjects,
-    internalSavedObjects,
+    credentialSavedObjects,
     cryptography,
     testClientDataSourceAttr,
     customApiSchemaRegistryPromise,
@@ -63,11 +63,11 @@ export const configureClient = async (
         ((type === AuthType.UsernamePasswordType && !credentials?.password) ||
           (type === AuthType.SigV4 && !credentials?.accessKey && !credentials?.secretKey))
       ) {
-        // Verify user can access the data source (scoped client enforces tenant/workspace permissions),
-        // then fetch with credentials via internal repository to avoid the credential-stripping wrapper.
+        // Verify user can access the data source (wrapped scoped client enforces tenant/workspace
+        // permissions), then fetch with credentials via an unwrapped scoped repository.
         dataSource = await getDataSource(dataSourceId, savedObjects);
-        if (internalSavedObjects) {
-          dataSource = await getDataSourceInternal(dataSourceId, internalSavedObjects);
+        if (credentialSavedObjects) {
+          dataSource = await getDataSourceWithCredentials(dataSourceId, credentialSavedObjects);
         }
       } else {
         dataSource = testClientDataSourceAttr;
@@ -77,11 +77,11 @@ export const configureClient = async (
       // Verify user can access the data source (scoped client enforces tenant/workspace permissions).
       // This throws a 404 / Forbidden if the user does not have access, preventing use of a
       // data source the caller is not authorised to access.
-      // The scoped client returns credentials stripped by the wrapper; if an internal repository
-      // is available, use it to re-fetch with full encrypted credentials for decryption below.
+      // The wrapped scoped client returns credentials stripped by the wrapper; if an unwrapped
+      // scoped repository is available, use it to re-fetch with full encrypted credentials.
       dataSource = await getDataSource(dataSourceId!, savedObjects);
-      if (internalSavedObjects) {
-        dataSource = await getDataSourceInternal(dataSourceId!, internalSavedObjects);
+      if (credentialSavedObjects) {
+        dataSource = await getDataSourceWithCredentials(dataSourceId!, credentialSavedObjects);
       }
     }
 

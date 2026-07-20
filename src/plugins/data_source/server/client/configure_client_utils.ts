@@ -71,18 +71,18 @@ export const getDataSource = async (
 };
 
 /**
- * Fetch a data source with full credentials using the internal repository.
- * The internal repository bypasses the credential-stripping SavedObjects wrapper,
+ * Fetch a data source with full credentials using a request-scoped repository.
+ * The repository bypasses the credential-stripping SavedObjects wrapper,
  * so encrypted credentials are present in the returned attributes.
  *
  * IMPORTANT: callers MUST have already verified the requesting user can access
  * this data source via the scoped client (getDataSource) before calling this.
  */
-export const getDataSourceInternal = async (
+export const getDataSourceWithCredentials = async (
   dataSourceId: string,
-  internalSavedObjects: ISavedObjectsRepository
+  credentialSavedObjects: ISavedObjectsRepository
 ): Promise<DataSourceAttributes> => {
-  const dataSourceSavedObject = await internalSavedObjects.get<DataSourceAttributes>(
+  const dataSourceSavedObject = await credentialSavedObjects.get<DataSourceAttributes>(
     DATA_SOURCE_SAVED_OBJECT_TYPE,
     dataSourceId
   );

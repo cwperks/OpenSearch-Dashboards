@@ -33,7 +33,7 @@ import {
   getAWSCredential,
   getCredential,
   getDataSource,
-  getDataSourceInternal,
+  getDataSourceWithCredentials,
   getAuthenticationMethod,
   generateCacheKey,
 } from '../client/configure_client_utils';
@@ -43,7 +43,7 @@ export const configureLegacyClient = async (
   {
     dataSourceId,
     savedObjects,
-    internalSavedObjects,
+    credentialSavedObjects,
     cryptography,
     customApiSchemaRegistryPromise,
     request,
@@ -55,13 +55,14 @@ export const configureLegacyClient = async (
   logger: Logger
 ) => {
   try {
-    // Verify the user can access the data source via the scoped client (enforces tenant/workspace
-    // permissions), then fetch with full credentials via internal repository.
-    // The scoped client returns credentials stripped by the wrapper; re-fetch via internal
-    // repository when available so encrypted credentials are present for decryption below.
+    // Verify the user can access the data source via the wrapped scoped client (enforces
+    // tenant/workspace permissions), then fetch with full credentials via an unwrapped scoped
+    // repository.
+    // The wrapped client returns credentials stripped; re-fetch via the unwrapped repository
+    // when available so encrypted credentials are present for decryption below.
     let dataSourceAttr = await getDataSource(dataSourceId!, savedObjects);
-    if (internalSavedObjects) {
-      dataSourceAttr = await getDataSourceInternal(dataSourceId!, internalSavedObjects);
+    if (credentialSavedObjects) {
+      dataSourceAttr = await getDataSourceWithCredentials(dataSourceId!, credentialSavedObjects);
     }
     let clientParams;
 
