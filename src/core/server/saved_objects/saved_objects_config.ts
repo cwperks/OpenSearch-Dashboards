@@ -52,6 +52,10 @@ export const savedObjectsMigrationConfig = {
         },
       }
     ),
+    cleanup: schema.object({
+      enabled: schema.boolean({ defaultValue: false }),
+      keepVersions: schema.number({ defaultValue: 1, min: 0 }),
+    }),
   }),
 };
 

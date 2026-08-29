@@ -241,6 +241,57 @@ export async function deleteIndex(client: MigrationOpenSearchClient, index: stri
 }
 
 /**
+ * Deletes old migration indices, keeping the specified number of previous versions.
+ * For example, if keepVersions=1 and current index is .kibana_3, it will keep .kibana_2
+ * and delete .kibana_1 and any older indices.
+ *
+ * @param client - The OpenSearch client
+ * @param currentIndex - The current index name (e.g., '.kibana_3')
+ * @param alias - The alias name (e.g., '.kibana')
+ * @param keepVersions - Number of old versions to keep (default: 1)
+ * @param log - Logger for audit purposes
+ */
+export async function deleteOldIndices(
+  client: MigrationOpenSearchClient,
+  currentIndex: string,
+  alias: string,
+  keepVersions: number,
+  log: { info: (msg: string) => void }
+): Promise<string[]> {
+  const { body, statusCode } = await client.indices.get({ index: `${alias}_*` }, { ignore: [404] });
+
+  if (statusCode === 404 || !body) {
+    return [];
+  }
+
+  const indices = Object.keys(body)
+    .map((name) => {
+      const match = name.match(new RegExp(`^${escapeRegex(alias)}_(\\d+)$`));
+      return match ? { name, version: parseInt(match[1], 10) } : null;
+    })
+    .filter((item): item is { name: string; version: number } => item !== null)
+    .sort((a, b) => b.version - a.version);
+
+  const currentVersion = parseInt((currentIndex.match(/_(\d+)$/) || [])[1], 10) || 0;
+  const indicesToDelete = indices.filter((idx) => idx.version < currentVersion - keepVersions);
+
+  if (indicesToDelete.length === 0) {
+    return [];
+  }
+
+  const deleteNames = indicesToDelete.map((idx) => idx.name);
+  log.info(`Deleting old saved objects indices: ${deleteNames.join(', ')}`);
+
+  await client.indices.delete({ index: deleteNames });
+
+  return deleteNames;
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
  * Converts an index to an alias. The `alias` parameter is the desired alias name which currently
  * is a concrete index. This function will reindex `alias` into a new index, delete the `alias`
  * index, and then create an alias `alias` that points to the new index.
